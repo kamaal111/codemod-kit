@@ -45,10 +45,10 @@ export async function runCodemod(
 
   const extensions = new Set(
     Array.from(codemod.languages).reduce<Array<string>>((acc, language) => {
-      const e = LANG_TO_EXTENSIONS_MAPPING[language.toLowerCase()];
-      if (e == null) return acc;
+      const mappedExtensions = LANG_TO_EXTENSIONS_MAPPING[language.toLowerCase()];
+      if (mappedExtensions == null) return acc;
 
-      return acc.concat(Array.from(e));
+      return acc.concat(Array.from(mappedExtensions));
     }, []),
   );
   const targets = globItems.filter(filepath => {

@@ -1,6 +1,7 @@
 PN := "pnpm"
 PNR := PN + " run"
 PNX := PN + " exec"
+TSX := PNX + " tsx"
 
 # List available commands
 default:
@@ -17,6 +18,10 @@ build-clean:
 # Test project
 test:
     {{ PNR }} test
+
+# Test package with coverage
+test-cov:
+    {{ PNR }} test:cov
 
 # Lint project
 lint:
@@ -45,8 +50,26 @@ install-modules:
 
     echo "Y" | pnpm i
 
+# Publish package to NPM
+publish: install-modules build-clean
+    #!/bin/zsh
+
+    {{ TSX }} scripts/publish-package-json.ts "${VERSION:-null}"
+
+    pnpm publish --access public --no-git-checks
+
 # Bootstrap project
 bootstrap: install-node enable-corepack install-modules
+
+# Bootstrap for CI
+[linux]
+bootstrap-ci: install-zsh enable-corepack install-modules
+
+[private]
+[linux]
+install-zsh:
+    sudo apt-get update
+    sudo apt-get install -y zsh
 
 [private]
 install-node:

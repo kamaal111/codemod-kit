@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+
+concurrency:
+  group: ${{ github.ref }}-ci
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Quality
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git - Checkout
+        uses: actions/checkout@v4
+
+      - name: Install just
+        uses: taiki-e/install-action@just
+
+      - name: Use Node 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          registry-url: https://registry.npmjs.org
+
+      - name: Bootstrap
+        run: just bootstrap-ci
+
+      - name: Run quality checks
+        run: just quality
+
+  test:
+    name: Test
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git - Checkout
+        uses: actions/checkout@v4
+
+      - name: Install just
+        uses: taiki-e/install-action@just
+
+      - name: Use Node 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          registry-url: https://registry.npmjs.org
+
+      - name: Bootstrap
+        run: just bootstrap-ci
+
+      - name: Run tests
+        run: just test-cov
