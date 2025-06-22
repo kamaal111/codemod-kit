@@ -4,10 +4,10 @@ import fs from 'node:fs/promises';
 import fg from 'fast-glob';
 import { err, ok, type Result } from 'neverthrow';
 
-import { LANG_TO_EXTENSIONS_MAPPING } from './constants';
-import type { Codemod, Modifications } from './types';
-import { collectionIsEmpty } from '../utils/collections';
-import type { Optional } from '../utils/type-utils';
+import { LANG_TO_EXTENSIONS_MAPPING } from './constants.js';
+import type { Codemod, Modifications } from './types.js';
+import { collectionIsEmpty } from '../utils/collections.js';
+import type { Optional } from '../utils/type-utils.js';
 
 type RunCodemodHooks = {
   targetFiltering?: (filepath: string) => boolean;

@@ -1,1 +1,1 @@
-export { runCodemods, runCodemod, type Codemod, type Modifications } from './codemods';
+export { runCodemods, runCodemod, type Codemod, type Modifications } from './codemods/index.js';
