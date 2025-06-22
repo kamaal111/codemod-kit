@@ -26,10 +26,9 @@ export async function runCodemods(
   transformationPath: string,
   options?: RunCodemodOptions,
 ): Promise<Record<string, Array<Result<Modifications, Error>>>> {
-  const globItems = await fg.glob(['**/*'], { cwd: transformationPath });
   const results: Record<string, Array<Result<Modifications, Error>>> = {};
   for (const codemod of codemods) {
-    results[codemod.name] = await runCodemod(codemod, transformationPath, globItems, options);
+    results[codemod.name] = await runCodemod(codemod, transformationPath, options);
   }
 
   return results;
@@ -38,10 +37,10 @@ export async function runCodemods(
 export async function runCodemod(
   codemod: Codemod,
   transformationPath: string,
-  globItems: Array<string>,
   options?: RunCodemodOptions,
 ): Promise<Array<Result<Modifications, Error>>> {
   const { hooks, log: enableLogging, dry: runInDryMode } = defaultedOptions(options);
+  const globItems = await fg.glob(['**/*'], { cwd: transformationPath });
 
   const extensions = new Set(
     Array.from(codemod.languages).reduce<Array<string>>((acc, language) => {
