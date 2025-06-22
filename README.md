@@ -1,23 +1,116 @@
-# Rslib project
+# Codemod kit
 
-## Setup
+A toolkit to run codemods.
 
-Install the dependencies:
-
-```bash
-pnpm install
-```
-
-## Get started
-
-Build the library:
+## Installation
 
 ```bash
-pnpm build
+pnpm add @kamaalio/codemod-kit
 ```
 
-Build the library in watch mode:
+## Usage
 
-```bash
-pnpm dev
+```typescript
+import { runCodemods } from '@kamaalio/codemod-kit';
+import type { CodeMod } from '@kamaalio/codemod-kit';
+
+const myCodemod: CodeMod = {
+  name: 'my-codemod',
+  languages: ['typescript'],
+  commitMessage: 'feat(codemod): my first codemod',
+  transformer: async (content, filename) => {
+    // ... transform the content
+  },
+};
+
+runCodemods([myCodemod], './src');
 ```
+
+## API
+
+### `runCodemods(codemods, transformationPath, options?)`
+
+Runs a list of codemods on a given path.
+
+- `codemods`: An array of `Codemod` objects.
+- `transformationPath`: The path to the directory to transform.
+- `options`: Optional configuration for the run.
+
+### `runCodemod(codemod, transformationPath, globItems, options?)`
+
+Runs a single codemod.
+
+- `codemod`: A `Codemod` object.
+- `transformationPath`: The path to the directory to transform.
+- `globItems`: An array of file paths to transform.
+- `options`: Optional configuration for the run.
+
+### `Codemod`
+
+A codemod is defined by the `Codemod` type:
+
+```typescript
+export type Codemod = {
+  name: string;
+  languages: Set<NapiLang> | Array<NapiLang>;
+  commitMessage: string;
+  transformer: (content: SgRoot<TypesMap> | string, filename?: Optional<string>) => Promise<Modifications>;
+};
+```
+
+- `name`: The name of the codemod.
+- `languages`: The languages the codemod applies to.
+- `commitMessage`: The commit message to use when applying the codemod.
+- `transformer`: The function that transforms the code.
+
+### `Modifications`
+
+The `transformer` function returns a `Modifications` object:
+
+```typescript
+export type Modifications = {
+  ast: SgRoot<TypesMap>;
+  report: ModificationsReport;
+  lang: NapiLang;
+  filename: Optional<string>;
+  history: Array<SgRoot<TypesMap>>;
+};
+```
+
+- `ast`: The modified AST.
+- `report`: A report of the changes.
+- `lang`: The language of the file.
+- `filename`: The name of the file.
+- `history`: A history of the modifications.
+
+## Hooks
+
+You can provide hooks to customize the codemod run:
+
+```typescript
+type RunCodemodHooks = {
+  targetFiltering?: (filepath: string) => boolean;
+  preCodemodRun?: (codemod: Codemod) => Promise<void>;
+  postTransform?: (transformedContent: string) => Promise<string>;
+};
+```
+
+- `targetFiltering`: A function to filter the files to transform.
+- `preCodemodRun`: A function to run before each codemod.
+- `postTransform`: A function to run after each transformation.
+
+## Options
+
+You can provide options to customize the codemod run:
+
+```typescript
+type RunCodemodOptions = {
+  hooks?: RunCodemodHooks;
+  log?: boolean;
+  dry?: boolean;
+};
+```
+
+- `hooks`: The hooks to use.
+- `log`: Whether to log the output.
+- `dry`: Whether to run in dry mode (no changes are written to disk).
