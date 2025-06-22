@@ -7,24 +7,24 @@ import { err, ok, type Result } from 'neverthrow';
 import { LANG_TO_EXTENSIONS_MAPPING } from './constants.js';
 import type { Codemod, Modifications } from './types.js';
 import { collectionIsEmpty } from '../utils/collections.js';
-import type { Optional } from '../utils/type-utils.js';
+import type { Optional, ReplaceObjectProperty } from '../utils/type-utils.js';
 
-type RunCodemodHooks = {
-  targetFiltering?: (filepath: string, codemod: Codemod) => boolean;
-  preCodemodRun?: (codemod: Codemod) => Promise<void>;
-  postTransform?: (transformedContent: string, codemod: Codemod) => Promise<string>;
+type RunCodemodHooks<C extends Codemod> = {
+  targetFiltering?: (filepath: string, codemod: C) => boolean;
+  preCodemodRun?: (codemod: C) => Promise<void>;
+  postTransform?: (transformedContent: string, codemod: C) => Promise<string>;
 };
 
-type RunCodemodOptions = {
-  hooks?: RunCodemodHooks;
+type RunCodemodOptions<C extends Codemod> = {
+  hooks?: RunCodemodHooks<C>;
   log?: boolean;
   dry?: boolean;
 };
 
-export async function runCodemods(
-  codemods: Array<Codemod>,
+export async function runCodemods<C extends Codemod>(
+  codemods: Array<C>,
   transformationPath: string,
-  options?: RunCodemodOptions,
+  options?: RunCodemodOptions<C>,
 ): Promise<Record<string, Array<Result<Modifications, Error>>>> {
   const results: Record<string, Array<Result<Modifications, Error>>> = {};
   for (const codemod of codemods) {
@@ -34,10 +34,10 @@ export async function runCodemods(
   return results;
 }
 
-export async function runCodemod(
-  codemod: Codemod,
+export async function runCodemod<C extends Codemod>(
+  codemod: C,
   transformationPath: string,
-  options?: RunCodemodOptions,
+  options?: RunCodemodOptions<C>,
 ): Promise<Array<Result<Modifications, Error>>> {
   const { hooks, log: enableLogging, dry: runInDryMode } = defaultedOptions(options);
   const globItems = await fg.glob(['**/*'], { cwd: transformationPath });
@@ -94,13 +94,13 @@ export async function runCodemod(
   );
 }
 
-function defaultedOptions(
-  options: Optional<RunCodemodOptions>,
-): Required<Omit<RunCodemodOptions, 'hooks'>> & { hooks: Required<RunCodemodHooks> } {
-  return { hooks: defaultedHooks(options?.hooks), log: options?.log ?? true, dry: options?.dry ?? false };
+function defaultedOptions<C extends Codemod>(
+  options: Optional<RunCodemodOptions<C>>,
+): Required<ReplaceObjectProperty<RunCodemodOptions<C>, 'hooks', Required<RunCodemodHooks<C>>>> {
+  return { hooks: defaultedHooks<C>(options?.hooks), log: options?.log ?? true, dry: options?.dry ?? false };
 }
 
-function defaultedHooks(hooks: Optional<RunCodemodHooks>): Required<RunCodemodHooks> {
+function defaultedHooks<C extends Codemod>(hooks: Optional<RunCodemodHooks<C>>): Required<RunCodemodHooks<C>> {
   const targetFiltering = hooks?.targetFiltering ?? (() => true);
   const postTransform = hooks?.postTransform ?? (async content => content);
   const preCodemodRun = hooks?.preCodemodRun ?? (async () => {});
