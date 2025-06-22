@@ -4,6 +4,13 @@ import type { TypesMap } from '@ast-grep/napi/types/staticTypes.js';
 
 import type { Optional } from '../utils/type-utils';
 
+export type CodeMod = {
+  name: string;
+  languages: Set<NapiLang> | Array<NapiLang>;
+  commitMessage: string;
+  transformer: (content: SgRoot<TypesMap> | string, filename?: Optional<string>) => Promise<Modifications>;
+};
+
 export type ModificationsReport = {
   changesApplied: number;
 };

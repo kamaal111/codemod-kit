@@ -1,2 +1,2 @@
 export { runCodemods, runCodemod } from './utils';
-export type { CodeMod } from './constants';
+export type { CodeMod, Modifications } from './types';
