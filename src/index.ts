@@ -1,1 +1,1 @@
-export const squared = (n: number): number => n * n;
+export { runCodemods, runCodemod, type CodeMod } from './codemods';

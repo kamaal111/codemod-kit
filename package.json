@@ -26,6 +26,11 @@
     "test": "vitest run",
     "type-check": "tsc --noEmit"
   },
+  "dependencies": {
+    "@ast-grep/napi": "^0.38.5",
+    "fast-glob": "^3.3.3",
+    "neverthrow": "^8.2.0"
+  },
   "devDependencies": {
     "@eslint/js": "^9.29.0",
     "@kamaalio/prettier-config": "^0.1.2",
