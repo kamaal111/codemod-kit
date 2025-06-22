@@ -54,5 +54,6 @@
   "lint-staged": {
     "**/*": "prettier --write --ignore-unknown"
   },
-  "prettier": "@kamaalio/prettier-config"
+  "prettier": "@kamaalio/prettier-config",
+  "packageManager": "pnpm@10.12.1"
 }

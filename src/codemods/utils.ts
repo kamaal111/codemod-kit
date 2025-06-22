@@ -10,9 +10,9 @@ import { collectionIsEmpty } from '../utils/collections.js';
 import type { Optional } from '../utils/type-utils.js';
 
 type RunCodemodHooks = {
-  targetFiltering?: (filepath: string) => boolean;
+  targetFiltering?: (filepath: string, codemod: Codemod) => boolean;
   preCodemodRun?: (codemod: Codemod) => Promise<void>;
-  postTransform?: (transformedContent: string) => Promise<string>;
+  postTransform?: (transformedContent: string, codemod: Codemod) => Promise<string>;
 };
 
 type RunCodemodOptions = {
@@ -51,7 +51,7 @@ export async function runCodemod(
     }, []),
   );
   const targets = globItems.filter(filepath => {
-    if (!hooks.targetFiltering(filepath)) return false;
+    if (!hooks.targetFiltering(filepath, codemod)) return false;
 
     const projectName = filepath.split('/')[0];
     if (projectName == null) throw new Error('Invariant found, project name should be present');
@@ -73,7 +73,7 @@ export async function runCodemod(
         const content = await fs.readFile(fullPath, { encoding: 'utf-8' });
         const modifications = await codemod.transformer(content, fullPath);
         if (modifications.report.changesApplied > 0) {
-          const transformedContent = await hooks.postTransform(modifications.ast.root().text());
+          const transformedContent = await hooks.postTransform(modifications.ast.root().text(), codemod);
           if (!runInDryMode) {
             await fs.writeFile(fullPath, transformedContent);
           }
