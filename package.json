@@ -3,6 +3,9 @@
   "version": "0.0.1",
   "type": "module",
   "author": "Kamaal Farah",
+  "license": "MIT",
+  "repository": "kamaal111/codemod-kit",
+  "bugs": "https://github.com/kamaal111/codemod-kit/issues",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
