@@ -53,9 +53,6 @@ export async function runCodemod<C extends Codemod>(
   const targets = globItems.filter(filepath => {
     if (!hooks.targetFiltering(filepath, codemod)) return false;
 
-    const projectName = filepath.split('/')[0];
-    if (projectName == null) throw new Error('Invariant found, project name should be present');
-
     return collectionIsEmpty(extensions) || extensions.has(path.extname(filepath));
   });
   if (targets.length === 0) return [];
