@@ -5,13 +5,13 @@ import fg from 'fast-glob';
 import { err, ok, type Result } from 'neverthrow';
 
 import { LANG_TO_EXTENSIONS_MAPPING } from './constants';
-import type { CodeMod, Modifications } from './types';
+import type { Codemod, Modifications } from './types';
 import { collectionIsEmpty } from '../utils/collections';
 import type { Optional } from '../utils/type-utils';
 
 type RunCodemodHooks = {
   targetFiltering?: (filepath: string) => boolean;
-  preCodemodRun?: (codemod: CodeMod) => Promise<void>;
+  preCodemodRun?: (codemod: Codemod) => Promise<void>;
   postTransform?: (transformedContent: string) => Promise<string>;
 };
 
@@ -22,7 +22,7 @@ type RunCodemodOptions = {
 };
 
 export async function runCodemods(
-  codemods: Array<CodeMod>,
+  codemods: Array<Codemod>,
   transformationPath: string,
   options?: RunCodemodOptions,
 ): Promise<Record<string, Array<Result<Modifications, Error>>>> {
@@ -36,7 +36,7 @@ export async function runCodemods(
 }
 
 export async function runCodemod(
-  codemod: CodeMod,
+  codemod: Codemod,
   transformationPath: string,
   globItems: Array<string>,
   options?: RunCodemodOptions,
@@ -45,7 +45,7 @@ export async function runCodemod(
 
   const extensions = new Set(
     Array.from(codemod.languages).reduce<Array<string>>((acc, language) => {
-      const e = LANG_TO_EXTENSIONS_MAPPING[language];
+      const e = LANG_TO_EXTENSIONS_MAPPING[language.toLowerCase()];
       if (e == null) return acc;
 
       return acc.concat(Array.from(e));

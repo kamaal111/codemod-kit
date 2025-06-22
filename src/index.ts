@@ -1,1 +1,1 @@
-export { runCodemods, runCodemod, type CodeMod } from './codemods';
+export { runCodemods, runCodemod, type Codemod } from './codemods';

@@ -4,7 +4,7 @@ import type { TypesMap } from '@ast-grep/napi/types/staticTypes.js';
 
 import type { Optional } from '../utils/type-utils';
 
-export type CodeMod = {
+export type Codemod = {
   name: string;
   languages: Set<NapiLang> | Array<NapiLang>;
   commitMessage: string;
