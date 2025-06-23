@@ -17,7 +17,6 @@ import type { CodeMod } from '@kamaalio/codemod-kit';
 const myCodemod: CodeMod = {
   name: 'my-codemod',
   languages: ['typescript'],
-  commitMessage: 'feat(codemod): my first codemod',
   transformer: async (content, filename) => {
     // ... transform the content
   },
@@ -53,14 +52,12 @@ A codemod is defined by the `Codemod` type:
 export type Codemod = {
   name: string;
   languages: Set<NapiLang> | Array<NapiLang>;
-  commitMessage: string;
   transformer: (content: SgRoot<TypesMap> | string, filename?: Optional<string>) => Promise<Modifications>;
 };
 ```
 
 - `name`: The name of the codemod.
 - `languages`: The languages the codemod applies to.
-- `commitMessage`: The commit message to use when applying the codemod.
 - `transformer`: The function that transforms the code.
 
 ### `Modifications`
