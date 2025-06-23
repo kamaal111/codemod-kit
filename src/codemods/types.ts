@@ -7,7 +7,7 @@ import type { Optional } from '../utils/type-utils.js';
 export type Codemod = {
   name: string;
   languages: Set<NapiLang> | Array<NapiLang>;
-  transformer: (content: SgRoot<TypesMap> | string, filename?: Optional<string>) => Promise<string>;
+  transformer: (content: string, filename?: Optional<string>) => Promise<string>;
 };
 
 export type ModificationsReport = {
