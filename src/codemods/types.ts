@@ -8,7 +8,7 @@ export type Codemod = {
   name: string;
   languages: Set<NapiLang> | Array<NapiLang>;
   commitMessage: string;
-  transformer: (content: SgRoot<TypesMap> | string, filename?: Optional<string>) => Promise<Modifications>;
+  transformer: (content: SgRoot<TypesMap> | string, filename?: Optional<string>) => Promise<string>;
 };
 
 export type ModificationsReport = {

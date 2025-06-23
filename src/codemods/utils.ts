@@ -5,7 +5,7 @@ import fg from 'fast-glob';
 import { err, ok, type Result } from 'neverthrow';
 
 import { LANG_TO_EXTENSIONS_MAPPING } from './constants.js';
-import type { Codemod, Modifications } from './types.js';
+import type { Codemod } from './types.js';
 import { collectionIsEmpty } from '../utils/collections.js';
 import type { Optional, ReplaceObjectProperty } from '../utils/type-utils.js';
 
@@ -25,8 +25,8 @@ export async function runCodemods<C extends Codemod>(
   codemods: Array<C>,
   transformationPath: string,
   options?: RunCodemodOptions<C>,
-): Promise<Record<string, Array<Result<Modifications, Error>>>> {
-  const results: Record<string, Array<Result<Modifications, Error>>> = {};
+): Promise<Record<string, Array<Result<{ hasChanges: boolean; content: string }, Error>>>> {
+  const results: Record<string, Array<Result<{ hasChanges: boolean; content: string }, Error>>> = {};
   for (const codemod of codemods) {
     results[codemod.name] = await runCodemod(codemod, transformationPath, options);
   }
@@ -38,7 +38,7 @@ export async function runCodemod<C extends Codemod>(
   codemod: C,
   transformationPath: string,
   options?: RunCodemodOptions<C>,
-): Promise<Array<Result<Modifications, Error>>> {
+): Promise<Array<Result<{ hasChanges: boolean; content: string }, Error>>> {
   const { hooks, log: enableLogging, dry: runInDryMode } = defaultedOptions(options);
   const globItems = await fg.glob(['**/*'], { cwd: transformationPath });
 
@@ -68,18 +68,19 @@ export async function runCodemod<C extends Codemod>(
       const fullPath = path.join(transformationPath, filepath);
       try {
         const content = await fs.readFile(fullPath, { encoding: 'utf-8' });
-        const modifications = await codemod.transformer(content, fullPath);
-        if (modifications.report.changesApplied > 0) {
-          const transformedContent = await hooks.postTransform(modifications.ast.root().text(), codemod);
+        const modifiedContent = await codemod.transformer(content, fullPath);
+        const hasChanges = modifiedContent !== content;
+        if (hasChanges) {
+          const transformedContent = await hooks.postTransform(modifiedContent, codemod);
           if (!runInDryMode) {
             await fs.writeFile(fullPath, transformedContent);
           }
           if (enableLogging) {
-            console.log(`🚀 finished '${codemod.name}'`, { filename: filepath, report: modifications.report });
+            console.log(`🚀 finished '${codemod.name}'`, { filename: filepath });
           }
         }
 
-        return ok(modifications);
+        return ok({ hasChanges, content: modifiedContent });
       } catch (error) {
         if (enableLogging) {
           console.error(`❌ '${codemod.name}' failed to parse file`, filepath, error);
