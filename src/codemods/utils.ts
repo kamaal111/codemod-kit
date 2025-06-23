@@ -40,8 +40,9 @@ export async function runCodemod<C extends Codemod>(
   options?: RunCodemodOptions<C>,
 ): Promise<Array<Result<{ hasChanges: boolean; content: string }, Error>>> {
   const { hooks, log: enableLogging, dry: runInDryMode } = defaultedOptions(options);
-  const globItems = await fg.glob(['**/*'], { cwd: transformationPath });
+  await hooks.preCodemodRun(codemod);
 
+  const globItems = await fg.glob(['**/*'], { cwd: transformationPath });
   const extensions = new Set(
     Array.from(codemod.languages).reduce<Array<string>>((acc, language) => {
       const mappedExtensions = LANG_TO_EXTENSIONS_MAPPING[language.toLowerCase()];
