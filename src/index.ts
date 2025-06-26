@@ -1,1 +1,7 @@
-export { runCodemods, runCodemod, type Codemod, type Modifications } from './codemods/index.js';
+export {
+  runCodemods,
+  runCodemod,
+  commitEditModifications,
+  type Codemod,
+  type Modifications,
+} from './codemods/index.js';

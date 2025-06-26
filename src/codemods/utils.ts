@@ -3,9 +3,10 @@ import fs from 'node:fs/promises';
 
 import fg from 'fast-glob';
 import { err, ok, type Result } from 'neverthrow';
+import { parseAsync, type Edit } from '@ast-grep/napi';
 
 import { LANG_TO_EXTENSIONS_MAPPING } from './constants.js';
-import type { Codemod } from './types.js';
+import type { Codemod, Modifications } from './types.js';
 import { collectionIsEmpty } from '../utils/collections.js';
 import type { Optional, ReplaceObjectProperty } from '../utils/type-utils.js';
 
@@ -91,6 +92,24 @@ export async function runCodemod<C extends Codemod>(
       }
     }),
   );
+}
+
+export async function commitEditModifications(
+  edits: Array<Edit>,
+  modifications: Modifications,
+): Promise<Modifications> {
+  if (edits.length === 0) return modifications;
+
+  const root = modifications.ast.root();
+  const committed = root.commitEdits(edits);
+  const modifiedAST = await parseAsync(modifications.lang, committed);
+
+  return {
+    ...modifications,
+    ast: modifiedAST,
+    report: { changesApplied: modifications.report.changesApplied + edits.length },
+    history: modifications.history.concat([modifiedAST]),
+  };
 }
 
 function defaultedOptions<C extends Codemod>(
