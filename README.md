@@ -50,7 +50,7 @@ A utility function for finding and replacing AST nodes based on a rule.
 
 - `content`: An `SgRoot<TypesMap>` object representing the parsed AST.
 - `rule`: A `Rule<TypesMap>` object defining the pattern to search for.
-- `transformer`: A function that takes a matched node and returns an optional string replacement.
+- `transformer`: A function that takes a matched node and returns an optional string replacement, or a string for direct replacement.
 
 Returns the transformed content as a string with all matching nodes replaced.
 
@@ -65,10 +65,19 @@ function oldFunction() {
 `;
 
 const ast = await parseAsync('javascript', code);
-const result = findAndReplace(
+
+// Using a function transformer
+const result1 = findAndReplace(
   ast,
   { pattern: 'function oldFunction() { $$$ }' },
   node => 'function newFunction() { return "hello world"; }',
+);
+
+// Using a string transformer
+const result2 = findAndReplace(
+  ast,
+  { pattern: 'function oldFunction() { $$$ }' },
+  'function newFunction() { return "hello world"; }',
 );
 ```
 
@@ -78,7 +87,7 @@ A utility function for finding AST nodes and generating edit operations without 
 
 - `content`: An `SgRoot<TypesMap>` object representing the parsed AST.
 - `rule`: A `Rule<TypesMap>` object defining the pattern to search for.
-- `transformer`: A function that takes a matched node and returns an optional string replacement.
+- `transformer`: A function that takes a matched node and returns an optional string replacement, or a string for direct replacement.
 
 Returns an array of `Edit` objects that can be committed later using `commitEdits()`.
 
@@ -93,14 +102,23 @@ function oldFunction() {
 `;
 
 const ast = await parseAsync('javascript', code);
-const edits = findAndReplaceEdits(
+
+// Using a function transformer
+const edits1 = findAndReplaceEdits(
   ast,
   { pattern: 'function oldFunction() { $$$ }' },
   node => 'function newFunction() { return "hello world"; }',
 );
 
+// Using a string transformer
+const edits2 = findAndReplaceEdits(
+  ast,
+  { pattern: 'function oldFunction() { $$$ }' },
+  'function newFunction() { return "hello world"; }',
+);
+
 // Commit the edits later
-const result = ast.root().commitEdits(edits);
+const result = ast.root().commitEdits(edits1);
 ```
 
 ### `findAndReplaceConfig(content, lang, config)`
@@ -109,7 +127,7 @@ A utility function for applying multiple find-and-replace operations sequentiall
 
 - `content`: An `SgRoot<TypesMap>` object representing the parsed AST.
 - `lang`: A `NapiLang` value specifying the language for re-parsing after each transformation.
-- `config`: An array of objects containing `rule` and `transformer` pairs to apply sequentially.
+- `config`: An array of objects containing `rule` and `transformer` pairs to apply sequentially. The `transformer` can be either a function or a string.
 
 Returns the final transformed content as a string after applying all transformations.
 
@@ -132,7 +150,7 @@ const result = await findAndReplaceConfig(ast, 'javascript', [
   },
   {
     rule: { pattern: 'const value = $VAL' },
-    transformer: node => 'const value = 100',
+    transformer: 'const value = 100', // String transformer
   },
 ]);
 ```
@@ -142,7 +160,7 @@ const result = await findAndReplaceConfig(ast, 'javascript', [
 A utility function for applying multiple find-and-replace operations sequentially on a `Modifications` object.
 
 - `modifications`: A `Modifications` object containing the AST, language, and transformation history.
-- `config`: An array of objects containing `rule` and `transformer` pairs to apply sequentially.
+- `config`: An array of objects containing `rule` and `transformer` pairs to apply sequentially. The `transformer` can be either a function or a string.
 
 Returns a `Promise<Modifications>` with the updated AST, accumulated edit count, and transformation history.
 
@@ -173,7 +191,7 @@ const result = await findAndReplaceConfigModifications(initialModifications, [
   },
   {
     rule: { pattern: 'const value = $VAL' },
-    transformer: node => 'const value = 100',
+    transformer: 'const value = 100', // String transformer
   },
 ]);
 

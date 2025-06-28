@@ -25,6 +25,11 @@ type RunCodemodOptions<C extends Codemod> = {
   dry?: boolean;
 };
 
+type FindAndReplaceConfig = {
+  rule: Rule<TypesMap>;
+  transformer: ((node: SgNode<TypesMap, Kinds<TypesMap>>) => Optional<string>) | string;
+};
+
 export async function runCodemods<C extends Codemod>(
   codemods: Array<C>,
   transformationPath: string,
@@ -99,7 +104,7 @@ export async function runCodemod<C extends Codemod>(
 
 export async function findAndReplaceConfigModifications(
   modifications: Modifications,
-  config: Array<{ rule: Rule<TypesMap>; transformer: (node: SgNode<TypesMap, Kinds<TypesMap>>) => Optional<string> }>,
+  config: Array<FindAndReplaceConfig>,
 ): Promise<Modifications> {
   let currentModifications = { ...modifications };
   for (const { rule, transformer } of config) {
@@ -113,7 +118,7 @@ export async function findAndReplaceConfigModifications(
 async function findAndReplaceConfigEdits(
   content: SgRoot<TypesMap>,
   lang: NapiLang,
-  config: Array<{ rule: Rule<TypesMap>; transformer: (node: SgNode<TypesMap, Kinds<TypesMap>>) => Optional<string> }>,
+  config: Array<FindAndReplaceConfig>,
 ): Promise<Array<{ content: SgRoot<TypesMap>; edits: Array<Edit> }>> {
   let currentContent = content;
   const editsAndContent: Array<{ content: SgRoot<TypesMap>; edits: Array<Edit> }> = [];
@@ -130,7 +135,7 @@ async function findAndReplaceConfigEdits(
 export async function findAndReplaceConfig(
   content: SgRoot<TypesMap>,
   lang: NapiLang,
-  config: Array<{ rule: Rule<TypesMap>; transformer: (node: SgNode<TypesMap, Kinds<TypesMap>>) => Optional<string> }>,
+  config: Array<FindAndReplaceConfig>,
 ): Promise<string> {
   const edits = await findAndReplaceConfigEdits(content, lang, config);
 
@@ -139,22 +144,23 @@ export async function findAndReplaceConfig(
 
 export function findAndReplaceEdits(
   content: SgRoot<TypesMap>,
-  rule: Rule<TypesMap>,
-  transformer: (node: SgNode<TypesMap, Kinds<TypesMap>>) => Optional<string>,
+  rule: FindAndReplaceConfig['rule'],
+  transformer: FindAndReplaceConfig['transformer'],
 ): Array<Edit> {
   const nodes = content.root().findAll({ rule });
 
   return arrays.compactMap(nodes, node => {
-    const transformed = transformer(node);
+    const transformed = typeof transformer === 'string' ? transformer : transformer(node);
     if (transformed == null) return null;
+    if (transformed === node.text()) return null;
     return node.replace(transformed);
   });
 }
 
 export function findAndReplace(
   content: SgRoot<TypesMap>,
-  rule: Rule<TypesMap>,
-  transformer: (node: SgNode<TypesMap, Kinds<TypesMap>>) => Optional<string>,
+  rule: FindAndReplaceConfig['rule'],
+  transformer: FindAndReplaceConfig['transformer'],
 ): string {
   const root = content.root();
   const edits = findAndReplaceEdits(content, rule, transformer);
