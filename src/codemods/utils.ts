@@ -159,6 +159,8 @@ export function findAndReplaceEdits(
             edits.push(item);
           }
         }
+      } else {
+        valuesToTransform.push(transformed);
       }
 
       const metaVariables = Object.values(extractMetaVariables(node, rule));
