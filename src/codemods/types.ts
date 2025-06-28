@@ -25,6 +25,9 @@ export type Modifications = {
 export type FindAndReplaceConfig = {
   rule: Rule<TypesMap>;
   transformer:
-    | ((node: SgNode<TypesMap, Kinds<TypesMap>>, rule: Rule<TypesMap>) => Optional<string> | Array<Edit | string>)
+    | ((
+        node: SgNode<TypesMap, Kinds<TypesMap>>,
+        rule: Rule<TypesMap>,
+      ) => Optional<Edit | string> | Array<Edit | string>)
     | string;
 };

@@ -160,24 +160,23 @@ export function findAndReplaceEdits(
           }
         }
       } else {
-        valuesToTransform.push(transformed);
+        if (typeof transformed === 'string') {
+          valuesToTransform.push(transformed);
+        } else {
+          edits.push(transformed);
+        }
       }
 
       const metaVariables = Object.values(extractMetaVariables(node, rule));
+      const transformedValuesWithMetaVariablesReplaced = valuesToTransform.map(transformedValue => {
+        return metaVariables.reduce((acc, { original, value }) => acc.replaceAll(original, value), transformedValue);
+      });
 
       return arrays
-        .compactMap(
-          valuesToTransform.map(transformedValue => {
-            return metaVariables.reduce(
-              (acc, { original, value }) => acc.replaceAll(original, value),
-              transformedValue,
-            );
-          }),
-          transformedValueWithMetaVariablesReplaced => {
-            if (transformedValueWithMetaVariablesReplaced === node.text()) return null;
-            return node.replace(transformedValueWithMetaVariablesReplaced);
-          },
-        )
+        .compactMap(transformedValuesWithMetaVariablesReplaced, transformedValueWithMetaVariablesReplaced => {
+          if (transformedValueWithMetaVariablesReplaced === node.text()) return null;
+          return node.replace(transformedValueWithMetaVariablesReplaced);
+        })
         .concat(edits);
     })
     .flat(1);
