@@ -145,7 +145,7 @@ export function findAndReplaceEdits(
   const nodes = content.root().findAll({ rule });
 
   return arrays.compactMap(nodes, node => {
-    const transformed = typeof transformer === 'string' ? transformer : transformer(node);
+    const transformed = typeof transformer === 'string' ? transformer : transformer(node, rule);
     if (transformed == null) return null;
     if (transformed === node.text()) return null;
     return node.replace(transformed);
