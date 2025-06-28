@@ -44,6 +44,34 @@ Runs a single codemod.
 - `globItems`: An array of file paths to transform.
 - `options`: Optional configuration for the run.
 
+### `findAndReplace(content, rule, transformer)`
+
+A utility function for finding and replacing AST nodes based on a rule.
+
+- `content`: An `SgRoot<TypesMap>` object representing the parsed AST.
+- `rule`: A `Rule<TypesMap>` object defining the pattern to search for.
+- `transformer`: A function that takes a matched node and returns an optional string replacement.
+
+Returns the transformed content as a string with all matching nodes replaced.
+
+```typescript
+import { findAndReplace } from '@kamaalio/codemod-kit';
+import { parseAsync } from '@ast-grep/napi';
+
+const code = `
+function oldFunction() {
+  return "hello";
+}
+`;
+
+const ast = await parseAsync('javascript', code);
+const result = findAndReplace(
+  ast,
+  { pattern: 'function oldFunction() { $$$ }' },
+  node => 'function newFunction() { return "hello world"; }',
+);
+```
+
 ### `Codemod`
 
 A codemod is defined by the `Codemod` type:

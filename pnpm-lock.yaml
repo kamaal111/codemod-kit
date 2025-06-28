@@ -11,6 +11,9 @@ importers:
       '@ast-grep/napi':
         specifier: ^0.38.5
         version: 0.38.5
+      '@kamaalio/kamaal':
+        specifier: ^0.7.6
+        version: 0.7.6
       fast-glob:
         specifier: ^3.3.3
         version: 3.3.3
@@ -450,6 +453,10 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.25':
     resolution: {integrity: sha512-vNk6aEwybGtawWmy/PzwnGDOjCkLWSD2wqvjGGAgOAwCGWySYXfYoxt00IJkTF+8Lb57DwOb3Aa0o9CApepiYQ==}
+
+  '@kamaalio/kamaal@0.7.6':
+    resolution: {integrity: sha512-L7HY215ZuD8L1HBNkqyD/B0v27Hx9XByZA4iRChGmvPSvZyxzXLAPsbRKb+M4ByHgM1+hcZs5pm2ZgfldTFzTw==}
+    engines: {node: '>=21'}
 
   '@kamaalio/prettier-config@0.1.2':
     resolution: {integrity: sha512-1WW8H1y4np7QYimWFKkF4sm3BpMVYFE43fWWpuSLwP1gmdcy8+DxP7VPqpzP5f7HEtqd2WieqUzwLUnS6foDFw==}
@@ -1924,6 +1931,8 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.0
+
+  '@kamaalio/kamaal@0.7.6': {}
 
   '@kamaalio/prettier-config@0.1.2': {}
 

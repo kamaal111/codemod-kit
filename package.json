@@ -32,6 +32,7 @@
   },
   "dependencies": {
     "@ast-grep/napi": "^0.38.5",
+    "@kamaalio/kamaal": "^0.7.6",
     "fast-glob": "^3.3.3",
     "neverthrow": "^8.2.0"
   },
@@ -55,5 +56,5 @@
     "**/*": "prettier --write --ignore-unknown"
   },
   "prettier": "@kamaalio/prettier-config",
-  "packageManager": "pnpm@10.12.1"
+  "packageManager": "pnpm@10.12.4"
 }
