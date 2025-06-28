@@ -97,7 +97,20 @@ export async function runCodemod<C extends Codemod>(
   );
 }
 
-export async function findAndReplaceConfigEdits(
+export async function findAndReplaceConfigModifications(
+  modifications: Modifications,
+  config: Array<{ rule: Rule<TypesMap>; transformer: (node: SgNode<TypesMap, Kinds<TypesMap>>) => Optional<string> }>,
+): Promise<Modifications> {
+  let currentModifications = { ...modifications };
+  for (const { rule, transformer } of config) {
+    const edits = findAndReplaceEdits(currentModifications.ast, rule, transformer);
+    currentModifications = await commitEditModifications(edits, currentModifications);
+  }
+
+  return currentModifications;
+}
+
+async function findAndReplaceConfigEdits(
   content: SgRoot<TypesMap>,
   lang: NapiLang,
   config: Array<{ rule: Rule<TypesMap>; transformer: (node: SgNode<TypesMap, Kinds<TypesMap>>) => Optional<string> }>,

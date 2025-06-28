@@ -5,7 +5,7 @@ export {
   findAndReplace,
   findAndReplaceEdits,
   findAndReplaceConfig,
-  findAndReplaceConfigEdits,
+  findAndReplaceConfigModifications,
   type Codemod,
   type Modifications,
 } from './codemods/index.js';

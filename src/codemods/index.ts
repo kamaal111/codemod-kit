@@ -5,6 +5,6 @@ export {
   findAndReplace,
   findAndReplaceEdits,
   findAndReplaceConfig,
-  findAndReplaceConfigEdits,
+  findAndReplaceConfigModifications,
 } from './utils.js';
 export type { Codemod, Modifications } from './types.js';
