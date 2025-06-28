@@ -5,6 +5,7 @@ import fg from 'fast-glob';
 import { err, ok, type Result } from 'neverthrow';
 import { parseAsync, type Rule, type Edit, type SgNode, type SgRoot } from '@ast-grep/napi';
 import type { Kinds, TypesMap } from '@ast-grep/napi/types/staticTypes.js';
+import type { NapiLang } from '@ast-grep/napi/types/lang.js';
 import { arrays } from '@kamaalio/kamaal';
 
 import { LANG_TO_EXTENSIONS_MAPPING } from './constants.js';
@@ -94,6 +95,33 @@ export async function runCodemod<C extends Codemod>(
       }
     }),
   );
+}
+
+export async function findAndReplaceConfigEdits(
+  content: SgRoot<TypesMap>,
+  lang: NapiLang,
+  config: Array<{ rule: Rule<TypesMap>; transformer: (node: SgNode<TypesMap, Kinds<TypesMap>>) => Optional<string> }>,
+): Promise<Array<{ content: SgRoot<TypesMap>; edits: Array<Edit> }>> {
+  let currentContent = content;
+  const editsAndContent: Array<{ content: SgRoot<TypesMap>; edits: Array<Edit> }> = [];
+  for (const { rule, transformer } of config) {
+    const edits = findAndReplaceEdits(currentContent, rule, transformer);
+    const updatedContent = currentContent.root().commitEdits(edits);
+    editsAndContent.push({ content: currentContent, edits });
+    currentContent = await parseAsync(lang, updatedContent);
+  }
+
+  return editsAndContent;
+}
+
+export async function findAndReplaceConfig(
+  content: SgRoot<TypesMap>,
+  lang: NapiLang,
+  config: Array<{ rule: Rule<TypesMap>; transformer: (node: SgNode<TypesMap, Kinds<TypesMap>>) => Optional<string> }>,
+): Promise<string> {
+  const edits = await findAndReplaceConfigEdits(content, lang, config);
+
+  return edits.at(-1)?.content.root().text() ?? content.root().text();
 }
 
 export function findAndReplaceEdits(

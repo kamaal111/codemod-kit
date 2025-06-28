@@ -103,6 +103,72 @@ const edits = findAndReplaceEdits(
 const result = ast.root().commitEdits(edits);
 ```
 
+### `findAndReplaceConfig(content, lang, config)`
+
+A utility function for applying multiple find-and-replace operations sequentially on AST content.
+
+- `content`: An `SgRoot<TypesMap>` object representing the parsed AST.
+- `lang`: A `NapiLang` value specifying the language for re-parsing after each transformation.
+- `config`: An array of objects containing `rule` and `transformer` pairs to apply sequentially.
+
+Returns the final transformed content as a string after applying all transformations.
+
+```typescript
+import { findAndReplaceConfig } from '@kamaalio/codemod-kit';
+import { parseAsync } from '@ast-grep/napi';
+
+const code = `
+function oldFunction() {
+  return "hello";
+}
+const value = 42;
+`;
+
+const ast = await parseAsync('javascript', code);
+const result = await findAndReplaceConfig(ast, 'javascript', [
+  {
+    rule: { pattern: 'function oldFunction() { $$$ }' },
+    transformer: node => 'function newFunction() { return "hello world"; }',
+  },
+  {
+    rule: { pattern: 'const value = $VAL' },
+    transformer: node => 'const value = 100',
+  },
+]);
+```
+
+### `findAndReplaceConfigEdits(content, lang, config)`
+
+A utility function for applying multiple find-and-replace operations sequentially and returning the edit history.
+
+- `content`: An `SgRoot<TypesMap>` object representing the parsed AST.
+- `lang`: A `NapiLang` value specifying the language for re-parsing after each transformation.
+- `config`: An array of objects containing `rule` and `transformer` pairs to apply sequentially.
+
+Returns an array of objects containing the AST content and edits for each transformation step.
+
+```typescript
+import { findAndReplaceConfigEdits } from '@kamaalio/codemod-kit';
+import { parseAsync } from '@ast-grep/napi';
+
+const code = `
+function oldFunction() {
+  return "hello";
+}
+`;
+
+const ast = await parseAsync('javascript', code);
+const editsHistory = await findAndReplaceConfigEdits(ast, 'javascript', [
+  {
+    rule: { pattern: 'function oldFunction() { $$$ }' },
+    transformer: node => 'function newFunction() { return "hello world"; }',
+  },
+]);
+
+// Each element contains { content: SgRoot, edits: Edit[] }
+// Useful for tracking transformation history or debugging
+```
+
 ### `Codemod`
 
 A codemod is defined by the `Codemod` type:
