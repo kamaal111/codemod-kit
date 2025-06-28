@@ -96,17 +96,27 @@ export async function runCodemod<C extends Codemod>(
   );
 }
 
+export function findAndReplaceEdits(
+  content: SgRoot<TypesMap>,
+  rule: Rule<TypesMap>,
+  transformer: (node: SgNode<TypesMap, Kinds<TypesMap>>) => Optional<string>,
+): Array<Edit> {
+  const nodes = content.root().findAll({ rule });
+
+  return arrays.compactMap(nodes, node => {
+    const transformed = transformer(node);
+    if (transformed == null) return null;
+    return node.replace(transformed);
+  });
+}
+
 export function findAndReplace(
   content: SgRoot<TypesMap>,
   rule: Rule<TypesMap>,
   transformer: (node: SgNode<TypesMap, Kinds<TypesMap>>) => Optional<string>,
 ): string {
   const root = content.root();
-  const edits = arrays.compactMap(root.findAll({ rule }), node => {
-    const transformed = transformer(node);
-    if (transformed == null) return null;
-    return node.replace(transformed);
-  });
+  const edits = findAndReplaceEdits(content, rule, transformer);
 
   return root.commitEdits(edits);
 }

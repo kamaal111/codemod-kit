@@ -72,6 +72,37 @@ const result = findAndReplace(
 );
 ```
 
+### `findAndReplaceEdits(content, rule, transformer)`
+
+A utility function for finding AST nodes and generating edit operations without committing them.
+
+- `content`: An `SgRoot<TypesMap>` object representing the parsed AST.
+- `rule`: A `Rule<TypesMap>` object defining the pattern to search for.
+- `transformer`: A function that takes a matched node and returns an optional string replacement.
+
+Returns an array of `Edit` objects that can be committed later using `commitEdits()`.
+
+```typescript
+import { findAndReplaceEdits } from '@kamaalio/codemod-kit';
+import { parseAsync } from '@ast-grep/napi';
+
+const code = `
+function oldFunction() {
+  return "hello";
+}
+`;
+
+const ast = await parseAsync('javascript', code);
+const edits = findAndReplaceEdits(
+  ast,
+  { pattern: 'function oldFunction() { $$$ }' },
+  node => 'function newFunction() { return "hello world"; }',
+);
+
+// Commit the edits later
+const result = ast.root().commitEdits(edits);
+```
+
 ### `Codemod`
 
 A codemod is defined by the `Codemod` type:
