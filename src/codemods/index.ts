@@ -7,4 +7,4 @@ export {
   findAndReplaceConfig,
   findAndReplaceConfigModifications,
 } from './utils.js';
-export type { Codemod, Modifications } from './types.js';
+export type { Codemod, Modifications, FindAndReplaceConfig } from './types.js';

@@ -1,6 +1,6 @@
-import type { SgRoot } from '@ast-grep/napi';
+import type { Rule, SgNode, SgRoot } from '@ast-grep/napi';
 import type { NapiLang } from '@ast-grep/napi/types/lang.js';
-import type { TypesMap } from '@ast-grep/napi/types/staticTypes.js';
+import type { Kinds, TypesMap } from '@ast-grep/napi/types/staticTypes.js';
 
 import type { Optional } from '../utils/type-utils.js';
 
@@ -20,4 +20,9 @@ export type Modifications = {
   lang: NapiLang;
   filename: Optional<string>;
   history: Array<SgRoot<TypesMap>>;
+};
+
+export type FindAndReplaceConfig = {
+  rule: Rule<TypesMap>;
+  transformer: ((node: SgNode<TypesMap, Kinds<TypesMap>>) => Optional<string>) | string;
 };

@@ -3,13 +3,13 @@ import fs from 'node:fs/promises';
 
 import fg from 'fast-glob';
 import { err, ok, type Result } from 'neverthrow';
-import { parseAsync, type Rule, type Edit, type SgNode, type SgRoot } from '@ast-grep/napi';
-import type { Kinds, TypesMap } from '@ast-grep/napi/types/staticTypes.js';
+import { parseAsync, type Edit, type SgRoot } from '@ast-grep/napi';
+import type { TypesMap } from '@ast-grep/napi/types/staticTypes.js';
 import type { NapiLang } from '@ast-grep/napi/types/lang.js';
 import { arrays } from '@kamaalio/kamaal';
 
 import { LANG_TO_EXTENSIONS_MAPPING } from './constants.js';
-import type { Codemod, Modifications } from './types.js';
+import type { Codemod, FindAndReplaceConfig, Modifications } from './types.js';
 import { collectionIsEmpty } from '../utils/collections.js';
 import type { Optional, ReplaceObjectProperty } from '../utils/type-utils.js';
 
@@ -23,11 +23,6 @@ type RunCodemodOptions<C extends Codemod> = {
   hooks?: RunCodemodHooks<C>;
   log?: boolean;
   dry?: boolean;
-};
-
-type FindAndReplaceConfig = {
-  rule: Rule<TypesMap>;
-  transformer: ((node: SgNode<TypesMap, Kinds<TypesMap>>) => Optional<string>) | string;
 };
 
 export async function runCodemods<C extends Codemod>(

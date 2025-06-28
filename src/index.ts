@@ -8,4 +8,5 @@ export {
   findAndReplaceConfigModifications,
   type Codemod,
   type Modifications,
+  type FindAndReplaceConfig,
 } from './codemods/index.js';
