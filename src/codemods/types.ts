@@ -1,13 +1,13 @@
 import type { Edit, Rule, SgNode, SgRoot } from '@ast-grep/napi';
 import type { NapiLang } from '@ast-grep/napi/types/lang.js';
 import type { Kinds, TypesMap } from '@ast-grep/napi/types/staticTypes.js';
-
-import type { Optional } from '../utils/type-utils.js';
+import type { types } from '@kamaalio/kamaal';
 
 export type Codemod = {
   name: string;
   languages: Set<NapiLang> | Array<NapiLang>;
-  transformer: (content: string, filename?: Optional<string>) => Promise<string>;
+  transformer: (content: string, filename?: types.Optional<string>) => Promise<string>;
+  postTransform?: (rootPath: string) => Promise<void>;
 };
 
 export type ModificationsReport = {
@@ -18,7 +18,7 @@ export type Modifications = {
   ast: SgRoot<TypesMap>;
   report: ModificationsReport;
   lang: NapiLang;
-  filename: Optional<string>;
+  filename: types.Optional<string>;
   history: Array<SgRoot<TypesMap>>;
 };
 
@@ -28,6 +28,6 @@ export type FindAndReplaceConfig = {
     | ((
         node: SgNode<TypesMap, Kinds<TypesMap>>,
         rule: Rule<TypesMap>,
-      ) => Optional<Edit | string> | Array<Edit | string>)
+      ) => types.Optional<Edit | string> | Array<Edit | string>)
     | string;
 };

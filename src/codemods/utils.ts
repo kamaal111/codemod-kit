@@ -11,7 +11,7 @@ import { arrays, type types } from '@kamaalio/kamaal';
 import { LANG_TO_EXTENSIONS_MAPPING } from './constants.js';
 import type { Codemod, FindAndReplaceConfig, Modifications } from './types.js';
 import { collectionIsEmpty } from '../utils/collections.js';
-import type { Optional, ReplaceObjectProperty } from '../utils/type-utils.js';
+import type { ReplaceObjectProperty } from '../utils/type-utils.js';
 
 type RunCodemodHooks<C extends Codemod> = {
   targetFiltering?: (filepath: string, codemod: C) => boolean;
@@ -23,6 +23,7 @@ type RunCodemodOptions<C extends Codemod> = {
   hooks?: RunCodemodHooks<C>;
   log?: boolean;
   dry?: boolean;
+  rootPaths?: Array<string>;
 };
 
 export async function runCodemods<C extends Codemod>(
@@ -43,7 +44,7 @@ export async function runCodemod<C extends Codemod>(
   transformationPath: string,
   options?: RunCodemodOptions<C>,
 ): Promise<Array<Result<{ hasChanges: boolean; content: string }, Error>>> {
-  const { hooks, log: enableLogging, dry: runInDryMode } = defaultedOptions(options);
+  const { hooks, log: enableLogging, dry: runInDryMode, rootPaths } = defaultedOptions(options);
   await hooks.preCodemodRun(codemod);
 
   const globItems = await fg.glob(['**/*'], { cwd: transformationPath });
@@ -68,7 +69,7 @@ export async function runCodemod<C extends Codemod>(
     );
   }
 
-  return Promise.all(
+  const results = await Promise.all(
     targets.map(async filepath => {
       const fullPath = path.join(transformationPath, filepath);
       try {
@@ -95,6 +96,10 @@ export async function runCodemod<C extends Codemod>(
       }
     }),
   );
+
+  await Promise.all(rootPaths.map(rootPath => (codemod.postTransform ?? (async () => {}))(rootPath)));
+
+  return results;
 }
 
 export function traverseUp(
@@ -215,7 +220,7 @@ function extractMetaVariables(
   const metaVarRegex = /\$(\$\$)?([A-Z]+)/g;
   const patternMetaVars = [];
 
-  let match: Optional<RegExpExecArray>;
+  let match: types.Optional<RegExpExecArray>;
   while ((match = metaVarRegex.exec(pattern)) !== null) {
     const isMultiple = match[1] != null; // Check if $$$ pattern
     const varName = match[2]; // Variable name is now in group 2
@@ -298,12 +303,17 @@ export async function commitEditModifications(
 }
 
 function defaultedOptions<C extends Codemod>(
-  options: Optional<RunCodemodOptions<C>>,
+  options: types.Optional<RunCodemodOptions<C>>,
 ): Required<ReplaceObjectProperty<RunCodemodOptions<C>, 'hooks', Required<RunCodemodHooks<C>>>> {
-  return { hooks: defaultedHooks<C>(options?.hooks), log: options?.log ?? true, dry: options?.dry ?? false };
+  return {
+    hooks: defaultedHooks<C>(options?.hooks),
+    log: options?.log ?? true,
+    dry: options?.dry ?? false,
+    rootPaths: options?.rootPaths ?? [],
+  };
 }
 
-function defaultedHooks<C extends Codemod>(hooks: Optional<RunCodemodHooks<C>>): Required<RunCodemodHooks<C>> {
+function defaultedHooks<C extends Codemod>(hooks: types.Optional<RunCodemodHooks<C>>): Required<RunCodemodHooks<C>> {
   const targetFiltering = hooks?.targetFiltering ?? (() => true);
   const postTransform = hooks?.postTransform ?? (async content => content);
   const preCodemodRun = hooks?.preCodemodRun ?? (async () => {});
