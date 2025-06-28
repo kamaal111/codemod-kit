@@ -144,18 +144,41 @@ export function findAndReplaceEdits(
 ): Array<Edit> {
   const nodes = content.root().findAll({ rule });
 
-  return arrays.compactMap(nodes, node => {
-    const transformed = typeof transformer === 'string' ? transformer : transformer(node, rule);
-    if (transformed == null) return null;
+  return arrays
+    .compactMap(nodes, node => {
+      const transformed = typeof transformer === 'string' ? transformer : transformer(node, rule);
+      if (transformed == null) return null;
 
-    const transformedValueWithMetaVariablesReplaced = Object.values(extractMetaVariables(node, rule)).reduce(
-      (acc, { original, value }) => acc.replaceAll(original, value),
-      transformed,
-    );
+      const edits: Array<Edit> = [];
+      const valuesToTransform: Array<string> = [];
+      if (Array.isArray(transformed)) {
+        for (const item of transformed) {
+          if (typeof item === 'string') {
+            valuesToTransform.push(item);
+          } else {
+            edits.push(item);
+          }
+        }
+      }
 
-    if (transformedValueWithMetaVariablesReplaced === node.text()) return null;
-    return node.replace(transformedValueWithMetaVariablesReplaced);
-  });
+      const metaVariables = Object.values(extractMetaVariables(node, rule));
+
+      return arrays
+        .compactMap(
+          valuesToTransform.map(transformedValue => {
+            return metaVariables.reduce(
+              (acc, { original, value }) => acc.replaceAll(original, value),
+              transformedValue,
+            );
+          }),
+          transformedValueWithMetaVariablesReplaced => {
+            if (transformedValueWithMetaVariablesReplaced === node.text()) return null;
+            return node.replace(transformedValueWithMetaVariablesReplaced);
+          },
+        )
+        .concat(edits);
+    })
+    .flat(1);
 }
 
 function extractMetaVariables(
