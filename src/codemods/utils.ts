@@ -3,8 +3,8 @@ import fs from 'node:fs/promises';
 
 import fg from 'fast-glob';
 import { err, ok, type Result } from 'neverthrow';
-import { parseAsync, type Edit, type SgRoot } from '@ast-grep/napi';
-import type { TypesMap } from '@ast-grep/napi/types/staticTypes.js';
+import { parseAsync, type Rule, type Edit, type SgRoot, type SgNode } from '@ast-grep/napi';
+import type { Kinds, TypesMap } from '@ast-grep/napi/types/staticTypes.js';
 import type { NapiLang } from '@ast-grep/napi/types/lang.js';
 import { arrays } from '@kamaalio/kamaal';
 
@@ -147,9 +147,79 @@ export function findAndReplaceEdits(
   return arrays.compactMap(nodes, node => {
     const transformed = typeof transformer === 'string' ? transformer : transformer(node, rule);
     if (transformed == null) return null;
-    if (transformed === node.text()) return null;
-    return node.replace(transformed);
+
+    const transformedValueWithMetaVariablesReplaced = Object.values(extractMetaVariables(node, rule)).reduce(
+      (acc, { original, value }) => acc.replaceAll(original, value),
+      transformed,
+    );
+
+    if (transformedValueWithMetaVariablesReplaced === node.text()) return null;
+    return node.replace(transformedValueWithMetaVariablesReplaced);
   });
+}
+
+function extractMetaVariables(
+  node: SgNode<TypesMap, Kinds<TypesMap>>,
+  rule: Rule<TypesMap>,
+): Record<string, { start: number; end: number; value: string; original: string }> {
+  const pattern = rule.pattern?.toString();
+  if (pattern == null) return {};
+
+  // Find all meta variables in the pattern (starting with $ or $$$ followed by capital letters)
+  const metaVarRegex = /\$(\$\$)?([A-Z]+)/g;
+  const patternMetaVars = [];
+
+  let match: Optional<RegExpExecArray>;
+  while ((match = metaVarRegex.exec(pattern)) !== null) {
+    const isMultiple = match[1] != null; // Check if $$$ pattern
+    const varName = match[2]; // Variable name is now in group 2
+    patternMetaVars.push({
+      name: varName,
+      fullMatch: match[0],
+      patternIndex: match.index,
+      isMultiple, // Flag to indicate if this is a $$$ variable
+    });
+  }
+  if (patternMetaVars.length === 0) return {};
+
+  let regexPattern = pattern
+    // Escape special regex characters except for our meta variables
+    .replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  for (const metaVar of patternMetaVars) {
+    const escapedFullMatch = metaVar.fullMatch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (metaVar.isMultiple) {
+      regexPattern = regexPattern
+        // For $$$ variables, match zero or more of anything (non-greedy)
+        .replace(escapedFullMatch, '(.*?)');
+    } else {
+      regexPattern = regexPattern
+        // For $ variables, match one or more of anything (non-greedy)
+        .replace(escapedFullMatch, '(.+?)');
+    }
+  }
+
+  const nodeText = node.text();
+  const textMatch = nodeText.match(new RegExp(regexPattern));
+  if (textMatch == null) return {};
+
+  const metaVariables: Record<string, { start: number; end: number; value: string; original: string }> = {};
+  for (let index = 0; index < patternMetaVars.length; index += 1) {
+    const metaVar = patternMetaVars[index];
+    const capturedValue = textMatch[index + 1];
+    if (!capturedValue) continue;
+
+    const valueStart = nodeText.indexOf(capturedValue);
+    const valueEnd = valueStart + capturedValue.length;
+    metaVariables[metaVar.name] = {
+      start: valueStart,
+      end: valueEnd,
+      value: capturedValue,
+      original: metaVar.fullMatch,
+    };
+  }
+
+  return metaVariables;
 }
 
 export function findAndReplace(
