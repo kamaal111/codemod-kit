@@ -6,6 +6,7 @@ export {
   findAndReplaceEdits,
   findAndReplaceConfig,
   findAndReplaceConfigModifications,
+  traverseUp,
   type Codemod,
   type Modifications,
   type FindAndReplaceConfig,

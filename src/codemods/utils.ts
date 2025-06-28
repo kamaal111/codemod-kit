@@ -6,7 +6,7 @@ import { err, ok, type Result } from 'neverthrow';
 import { parseAsync, type Rule, type Edit, type SgRoot, type SgNode } from '@ast-grep/napi';
 import type { Kinds, TypesMap } from '@ast-grep/napi/types/staticTypes.js';
 import type { NapiLang } from '@ast-grep/napi/types/lang.js';
-import { arrays } from '@kamaalio/kamaal';
+import { arrays, type types } from '@kamaalio/kamaal';
 
 import { LANG_TO_EXTENSIONS_MAPPING } from './constants.js';
 import type { Codemod, FindAndReplaceConfig, Modifications } from './types.js';
@@ -95,6 +95,28 @@ export async function runCodemod<C extends Codemod>(
       }
     }),
   );
+}
+
+export function traverseUp(
+  node: SgNode<TypesMap, Kinds<TypesMap>>,
+  until: (node: SgNode<TypesMap, Kinds<TypesMap>>) => boolean,
+): types.Optional<SgNode<TypesMap, Kinds<TypesMap>>> {
+  let current = node.parent();
+  if (current == null) return null;
+
+  while (current != null) {
+    const next: types.Optional<SgNode<TypesMap, Kinds<TypesMap>>> = current.parent();
+    if (next == null) break;
+    if (until(next)) {
+      current = next;
+      break;
+    }
+
+    current = next;
+  }
+
+  if (!until(current)) return null;
+  return current;
 }
 
 export async function findAndReplaceConfigModifications(
