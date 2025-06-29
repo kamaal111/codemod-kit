@@ -8,4 +8,4 @@ export {
   findAndReplaceConfigModifications,
   traverseUp,
 } from './utils.js';
-export type { Codemod, Modifications, FindAndReplaceConfig } from './types.js';
+export type { Codemod, Modifications, FindAndReplaceConfig, RunCodemodOkResult } from './types.js';

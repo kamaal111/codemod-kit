@@ -9,7 +9,7 @@ export type Codemod = {
   name: string;
   languages: Set<NapiLang> | Array<NapiLang>;
   transformer: (content: string, filename?: types.Optional<string>) => Promise<string>;
-  postTransform?: (rootPath: { root: string; results: Array<RunCodemodOkResult> }) => Promise<void>;
+  postTransform?: (results: { root: string; results: Array<RunCodemodOkResult> }) => Promise<void>;
 };
 
 export type ModificationsReport = {
