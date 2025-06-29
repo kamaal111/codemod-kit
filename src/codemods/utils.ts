@@ -2,14 +2,14 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 
 import fg from 'fast-glob';
-import { err, ok, type Result } from 'neverthrow';
+import { err, ok } from 'neverthrow';
 import { parseAsync, type Rule, type Edit, type SgRoot, type SgNode } from '@ast-grep/napi';
 import type { Kinds, TypesMap } from '@ast-grep/napi/types/staticTypes.js';
 import type { NapiLang } from '@ast-grep/napi/types/lang.js';
 import { arrays, type types } from '@kamaalio/kamaal';
 
 import { LANG_TO_EXTENSIONS_MAPPING } from './constants.js';
-import type { Codemod, FindAndReplaceConfig, Modifications, RunCodemodOkResult } from './types.js';
+import type { Codemod, FindAndReplaceConfig, Modifications, RunCodemodOkResult, RunCodemodResult } from './types.js';
 import { collectionIsEmpty } from '../utils/collections.js';
 import type { ReplaceObjectProperty } from '../utils/type-utils.js';
 import { groupBy } from '../utils/arrays.js';
@@ -26,8 +26,6 @@ type RunCodemodOptions<C extends Codemod> = {
   dry?: boolean;
   rootPaths?: Array<string>;
 };
-
-type RunCodemodResult = Result<RunCodemodOkResult, Error>;
 
 export async function runCodemods<C extends Codemod>(
   codemods: Array<C>,

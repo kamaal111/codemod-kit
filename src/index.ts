@@ -11,4 +11,5 @@ export {
   type Modifications,
   type FindAndReplaceConfig,
   type RunCodemodOkResult,
+  type RunCodemodResult,
 } from './codemods/index.js';
