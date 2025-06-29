@@ -9,9 +9,10 @@ import type { NapiLang } from '@ast-grep/napi/types/lang.js';
 import { arrays, type types } from '@kamaalio/kamaal';
 
 import { LANG_TO_EXTENSIONS_MAPPING } from './constants.js';
-import type { Codemod, FindAndReplaceConfig, Modifications } from './types.js';
+import type { Codemod, FindAndReplaceConfig, Modifications, RunCodemodOkResult } from './types.js';
 import { collectionIsEmpty } from '../utils/collections.js';
 import type { ReplaceObjectProperty } from '../utils/type-utils.js';
+import { groupBy } from '../utils/arrays.js';
 
 type RunCodemodHooks<C extends Codemod> = {
   targetFiltering?: (filepath: string, codemod: C) => boolean;
@@ -26,12 +27,14 @@ type RunCodemodOptions<C extends Codemod> = {
   rootPaths?: Array<string>;
 };
 
+type RunCodemodResult = Result<RunCodemodOkResult, Error>;
+
 export async function runCodemods<C extends Codemod>(
   codemods: Array<C>,
   transformationPath: string,
   options?: RunCodemodOptions<C>,
-): Promise<Record<string, Array<Result<{ hasChanges: boolean; content: string }, Error>>>> {
-  const results: Record<string, Array<Result<{ hasChanges: boolean; content: string }, Error>>> = {};
+): Promise<Record<string, Array<RunCodemodResult>>> {
+  const results: Record<string, Array<RunCodemodResult>> = {};
   for (const codemod of codemods) {
     results[codemod.name] = await runCodemod(codemod, transformationPath, options);
   }
@@ -43,7 +46,7 @@ export async function runCodemod<C extends Codemod>(
   codemod: C,
   transformationPath: string,
   options?: RunCodemodOptions<C>,
-): Promise<Array<Result<{ hasChanges: boolean; content: string }, Error>>> {
+): Promise<Array<RunCodemodResult>> {
   const { hooks, log: enableLogging, dry: runInDryMode, rootPaths } = defaultedOptions(options);
   await hooks.preCodemodRun(codemod);
 
@@ -69,7 +72,7 @@ export async function runCodemod<C extends Codemod>(
     );
   }
 
-  const results = await Promise.all(
+  const results: Array<RunCodemodResult> = await Promise.all(
     targets.map(async filepath => {
       const fullPath = path.join(transformationPath, filepath);
       try {
@@ -86,7 +89,7 @@ export async function runCodemod<C extends Codemod>(
           }
         }
 
-        return ok({ hasChanges, content: modifiedContent });
+        return ok({ hasChanges, content: modifiedContent, fullPath, root: filepath.split('/')[0] });
       } catch (error) {
         if (enableLogging) {
           console.error(`❌ '${codemod.name}' failed to parse file`, filepath, error);
@@ -97,7 +100,16 @@ export async function runCodemod<C extends Codemod>(
     }),
   );
 
-  await Promise.all(rootPaths.map(rootPath => (codemod.postTransform ?? (async () => {}))(rootPath)));
+  const successes: Array<RunCodemodOkResult> = arrays.compactMap(results, result => {
+    if (result.isErr()) return null;
+    return result.value;
+  });
+  const successesGroupedByRoot = groupBy(successes, 'root');
+  const rootPathsWithResults: Array<{
+    root: string;
+    results: Array<RunCodemodOkResult>;
+  }> = rootPaths.map(root => ({ root, results: successesGroupedByRoot[root] ?? [] }));
+  await Promise.all(rootPathsWithResults.map(r => (codemod.postTransform ?? (async () => {}))(r)));
 
   return results;
 }
