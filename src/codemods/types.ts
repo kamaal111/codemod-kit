@@ -14,6 +14,13 @@ export type Codemod = {
   postTransform?: (results: { root: string; results: Array<RunCodemodOkResult> }) => Promise<void>;
 };
 
+export type CodemodRunnerCodemod<Tag = string, C extends Codemod = Codemod> = C & {
+  tags: Set<Tag> | Array<Tag>;
+  commitMessage: string;
+};
+
+export type RepositoryToClone<Tag = string> = { address: string; tags: Set<Tag> };
+
 export type ModificationsReport = {
   changesApplied: number;
 };

@@ -6,28 +6,131 @@ import { err, ok } from 'neverthrow';
 import { parseAsync, type Rule, type Edit, type SgRoot, type SgNode } from '@ast-grep/napi';
 import type { Kinds, TypesMap } from '@ast-grep/napi/types/staticTypes.js';
 import type { NapiLang } from '@ast-grep/napi/types/lang.js';
-import { arrays, type types } from '@kamaalio/kamaal';
+import { arrays, asserts, type types } from '@kamaalio/kamaal';
 
 import { LANG_TO_EXTENSIONS_MAPPING } from './constants.js';
-import type { Codemod, FindAndReplaceConfig, Modifications, RunCodemodOkResult, RunCodemodResult } from './types.js';
+import type {
+  Codemod,
+  CodemodRunnerCodemod,
+  FindAndReplaceConfig,
+  Modifications,
+  RepositoryToClone,
+  RunCodemodOkResult,
+  RunCodemodResult,
+} from './types.js';
 import { collectionIsEmpty } from '../utils/collections.js';
 import type { ReplaceObjectProperty } from '../utils/type-utils.js';
 import { groupBy } from '../utils/arrays.js';
+import { cloneRepositories, type Repository } from '../git/index.js';
+import { groupResults } from '../utils/results.js';
+import { makePullRequestsForCodemodResults } from '../github/index.js';
 
-type RunCodemodHooks<C extends Codemod> = {
+type RunCodemodHooks<C extends Codemod = Codemod> = {
   targetFiltering?: (filepath: string, codemod: C) => boolean;
   preCodemodRun?: (codemod: C) => Promise<void>;
   postTransform?: (transformedContent: string, codemod: C) => Promise<string>;
 };
 
-type RunCodemodOptions<C extends Codemod> = {
+type RunCodemodOptions<C extends Codemod = Codemod> = {
   hooks?: RunCodemodHooks<C>;
   log?: boolean;
   dry?: boolean;
   rootPaths?: Array<string>;
 };
 
-export async function runCodemods<C extends Codemod>(
+export async function runCodemodsOnProjects<Tag = string, C extends Codemod = Codemod>(
+  repositoriesToClone: Array<RepositoryToClone<Tag>>,
+  codemods: Array<CodemodRunnerCodemod<Tag, C>>,
+  options: { workingDirectory: string; pushChanges: boolean },
+) {
+  const clonedRepositories = await cloneRepositories(
+    repositoriesToClone.map(repo => repo.address),
+    options.workingDirectory,
+  );
+  console.log(
+    `🖨️ cloned ${clonedRepositories.length} ${clonedRepositories.length === 1 ? 'repository' : 'repositories'}`,
+  );
+
+  const mappingsByName = clonedRepositories.reduce<Record<string, { repository: Repository; tags: Set<Tag> }>>(
+    (acc, repository) => {
+      const tags = repositoriesToClone.find(({ address }) => address === repository.address)?.tags;
+      asserts.invariant(tags != null, 'Tags should be present');
+
+      return { ...acc, [repository.name]: { repository, tags } };
+    },
+    {},
+  );
+  const codemodResults = await runCodemodRunner(codemods, clonedRepositories, mappingsByName, options.workingDirectory);
+  if (options.pushChanges) {
+    await makePullRequestsForCodemodResults(codemods, codemodResults, clonedRepositories);
+  }
+}
+
+function codemodTargetFiltering<Tag = string, C extends Codemod = Codemod>(
+  mappingsByName: Record<string, { repository: Repository; tags: Set<Tag> }>,
+  failedRepositoryAddressesMappedByCodemodNames: Record<string, Set<string>>,
+): (filepath: string, codemod: CodemodRunnerCodemod<Tag, C>) => boolean {
+  return (filepath, codemod) => {
+    const projectName = filepath.split('/')[0];
+    asserts.invariant(projectName != null, 'project name should be present');
+
+    const mapping = mappingsByName[projectName];
+    if (mapping == null) return false;
+
+    const failedRepositoryAddressesSet = failedRepositoryAddressesMappedByCodemodNames[codemod.name];
+    if (failedRepositoryAddressesSet == null || collectionIsEmpty(failedRepositoryAddressesSet)) {
+      return true;
+    }
+
+    return (
+      !failedRepositoryAddressesSet.has(mapping.repository.address) &&
+      (collectionIsEmpty(codemod.tags) ||
+        collectionIsEmpty(mapping.tags) ||
+        [...codemod.tags].some(tag => mapping.tags.has(tag)))
+    );
+  };
+}
+
+async function codemodPreCodemodRun<Tag = string, C extends Codemod = Codemod>(
+  repositories: Array<Repository>,
+  codemod: CodemodRunnerCodemod<Tag, C>,
+): Promise<Set<string>> {
+  const preparationResults = await Promise.all(repositories.map(repo => repo.prepareForUpdate(codemod.name)));
+  const { failure: preparationFailures } = groupResults(preparationResults);
+  const failedRepositoryAddresses = preparationFailures.map(failure => failure.repository.address);
+  if (preparationFailures.length > 0) {
+    console.error(`❌ failed to prepare [${failedRepositoryAddresses.join(', ')}] for '${codemod.name}'`);
+  }
+
+  return new Set(failedRepositoryAddresses);
+}
+
+async function codemodPostTransform(transformedContent: string) {
+  return transformedContent;
+}
+
+async function runCodemodRunner<Tag = string, C extends Codemod = Codemod>(
+  codemods: Array<CodemodRunnerCodemod<Tag, C>>,
+  repositories: Array<Repository>,
+  mappingsByName: Record<string, { repository: Repository; tags: Set<Tag> }>,
+  workingDirectory: string,
+): Promise<Record<string, Array<RunCodemodResult>>> {
+  const rootPaths = repositories.map(repository => repository.path);
+  const failedRepositoryAddressesMappedByCodemodNames: Record<string, Set<string>> = {};
+
+  return runCodemods(codemods, workingDirectory, {
+    rootPaths,
+    hooks: {
+      preCodemodRun: async codemod => {
+        failedRepositoryAddressesMappedByCodemodNames[codemod.name] = await codemodPreCodemodRun(repositories, codemod);
+      },
+      targetFiltering: codemodTargetFiltering(mappingsByName, failedRepositoryAddressesMappedByCodemodNames),
+      postTransform: codemodPostTransform,
+    },
+  });
+}
+
+export async function runCodemods<C extends Codemod = Codemod>(
   codemods: Array<C>,
   transformationPath: string,
   options?: RunCodemodOptions<C>,
@@ -40,7 +143,7 @@ export async function runCodemods<C extends Codemod>(
   return results;
 }
 
-export async function runCodemod<C extends Codemod>(
+export async function runCodemod<C extends Codemod = Codemod>(
   codemod: C,
   transformationPath: string,
   options?: RunCodemodOptions<C>,
@@ -312,7 +415,7 @@ export async function commitEditModifications(
   };
 }
 
-function defaultedOptions<C extends Codemod>(
+function defaultedOptions<C extends Codemod = Codemod>(
   options: types.Optional<RunCodemodOptions<C>>,
 ): Required<ReplaceObjectProperty<RunCodemodOptions<C>, 'hooks', Required<RunCodemodHooks<C>>>> {
   return {
@@ -323,7 +426,9 @@ function defaultedOptions<C extends Codemod>(
   };
 }
 
-function defaultedHooks<C extends Codemod>(hooks: types.Optional<RunCodemodHooks<C>>): Required<RunCodemodHooks<C>> {
+function defaultedHooks<C extends Codemod = Codemod>(
+  hooks: types.Optional<RunCodemodHooks<C>>,
+): Required<RunCodemodHooks<C>> {
   const targetFiltering = hooks?.targetFiltering ?? (() => true);
   const postTransform = hooks?.postTransform ?? (async content => content);
   const preCodemodRun = hooks?.preCodemodRun ?? (async () => {});

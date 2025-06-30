@@ -7,9 +7,12 @@ export {
   findAndReplaceConfig,
   findAndReplaceConfigModifications,
   traverseUp,
+  runCodemodsOnProjects,
   type Codemod,
   type Modifications,
   type FindAndReplaceConfig,
   type RunCodemodOkResult,
   type RunCodemodResult,
+  type CodemodRunnerCodemod,
+  type RepositoryToClone,
 } from './codemods/index.js';
