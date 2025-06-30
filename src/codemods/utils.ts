@@ -190,7 +190,12 @@ export async function runCodemod<C extends Codemod = Codemod>(
           }
         }
 
-        return ok({ hasChanges, content: modifiedContent, fullPath, root: filepath.split('/')[0] });
+        return ok({
+          hasChanges,
+          content: modifiedContent,
+          fullPath,
+          root: path.resolve(transformationPath, filepath.split('/')[0]),
+        });
       } catch (error) {
         if (enableLogging) {
           console.error(`❌ '${codemod.name}' failed to parse file`, filepath, error);
