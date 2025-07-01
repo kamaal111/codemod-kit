@@ -160,8 +160,10 @@ export async function runCodemod<C extends Codemod = Codemod>(
       return acc.concat(Array.from(mappedExtensions));
     }, []),
   );
+  const codemodTargetFiltering = codemod.targetFiltering ?? (() => true);
   const targets = globItems.filter(filepath => {
     if (!hooks.targetFiltering(filepath, codemod)) return false;
+    if (!codemodTargetFiltering(filepath, codemod)) return false;
 
     return collectionIsEmpty(extensions) || extensions.has(path.extname(filepath));
   });
