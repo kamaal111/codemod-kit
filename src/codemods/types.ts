@@ -12,6 +12,7 @@ export type Codemod = {
   languages: Set<NapiLang> | Array<NapiLang>;
   transformer: (content: string, filename?: types.Optional<string>) => Promise<string>;
   postTransform?: (results: { root: string; results: Array<RunCodemodOkResult> }) => Promise<void>;
+  targetFiltering?: (filepath: string, codemod: Codemod) => boolean;
 };
 
 export type CodemodRunnerCodemod<Tag = string, C extends Codemod = Codemod> = C & {
