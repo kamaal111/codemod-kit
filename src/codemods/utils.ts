@@ -7,7 +7,7 @@ import { err, ok } from 'neverthrow';
 import { parseAsync, type Rule, type Edit, type SgRoot, type SgNode } from '@ast-grep/napi';
 import type { Kinds, TypesMap } from '@ast-grep/napi/types/staticTypes.js';
 import type { NapiLang } from '@ast-grep/napi/types/lang.js';
-import { arrays, asserts, objects, type types } from '@kamaalio/kamaal';
+import { arrays, asserts, type types } from '@kamaalio/kamaal';
 
 import { LANG_TO_EXTENSIONS_MAPPING } from './constants.js';
 import type {
@@ -146,26 +146,24 @@ async function prepareRepositoriesForCodemods<Tag, C extends Codemod>(
   codemods: Array<CodemodRunnerCodemod<Tag, C>>,
   workingDirectory: string,
 ): Promise<Record<string, Array<Repository<Tag>>>> {
-  const reposMappedByMainBranchName = Object.fromEntries(
-    await Promise.all(
-      repositories.map<Promise<[string, Repository<Tag>]>>(async repo => {
-        const mainBranchResult = await repo.getMainBranch();
-        if (mainBranchResult.isErr()) throw mainBranchResult.error;
+  const reposMappedByMainBranch: Array<{ mainBranchName: string; repository: Repository<Tag> }> = await Promise.all(
+    repositories.map<Promise<{ mainBranchName: string; repository: Repository<Tag> }>>(async repo => {
+      const mainBranchResult = await repo.getMainBranch();
+      if (mainBranchResult.isErr()) throw mainBranchResult.error;
 
-        return [mainBranchResult.value.name, repo];
-      }),
-    ),
+      return { mainBranchName: mainBranchResult.value.name, repository: repo };
+    }),
   );
   const updatedRepositories = await Promise.all(
-    objects.toEntries(reposMappedByMainBranchName).map(async ([mainBranchName, repo]) => {
-      const prepareResult = await repo.prepareForUpdate(mainBranchName);
+    reposMappedByMainBranch.map(async ({ mainBranchName, repository }) => {
+      const prepareResult = await repository.prepareForUpdate(mainBranchName);
       if (prepareResult.isErr()) throw prepareResult.error;
 
       return prepareResult.value;
     }),
   );
   console.log(
-    `📋 prepared the following repos for codemods!\n${updatedRepositories.map(repo => repo.address).join('\n')}`,
+    `📋 prepared the following repos for codemods!\n· ${updatedRepositories.map(repo => repo.address).join('\n· ')}`,
   );
 
   return Object.fromEntries(
