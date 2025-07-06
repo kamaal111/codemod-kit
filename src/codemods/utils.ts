@@ -1,6 +1,7 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
 
+import { $ } from 'execa';
 import fg from 'fast-glob';
 import { err, ok } from 'neverthrow';
 import { parseAsync, type Rule, type Edit, type SgRoot, type SgNode } from '@ast-grep/napi';
@@ -166,8 +167,10 @@ async function prepareRepositoriesForCodemods<Tag, C extends Codemod>(
   return Object.fromEntries(
     await Promise.all(
       codemods.map<Promise<[string, Array<Repository<Tag>>]>>(async codemod => {
+        const codemodWorkingDirectory = path.resolve(workingDirectory, codemod.name.replace(/\//g, '-'));
+        await $`mkdir -p ${codemodWorkingDirectory}`;
         const codeRepositories = await Promise.all(
-          updatedRepositories.map(repo => repo.copy(path.resolve(workingDirectory, codemod.name, repo.name))),
+          updatedRepositories.map(repo => repo.copy(path.join(codemodWorkingDirectory, repo.name))),
         );
 
         return [codemod.name, codeRepositories];
