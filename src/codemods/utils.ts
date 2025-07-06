@@ -111,6 +111,7 @@ async function runCodemodRunner<Tag = string, C extends Codemod = Codemod>(
   const results: Record<string, Array<RunCodemodResult>> = Object.fromEntries(
     await Promise.all(
       codemods.map<Promise<[string, Array<RunCodemodResult>]>>(async codemod => {
+        const start = performance.now();
         const codemodRepositories = codemodRepositoriesMappedByCodemodName[codemod.name];
         asserts.invariant(codemodRepositories != null, 'Codemod repositories should be present');
 
@@ -132,6 +133,8 @@ async function runCodemodRunner<Tag = string, C extends Codemod = Codemod>(
             postTransform: codemodPostTransform,
           },
         });
+        const end = performance.now();
+        console.log(`✨ '${codemod.name}' codemod took ${((end - start) / 1000).toFixed(2)} seconds`);
 
         return [codemod.name, result];
       }),
@@ -163,7 +166,7 @@ async function prepareRepositoriesForCodemods<Tag, C extends Codemod>(
     }),
   );
   console.log(
-    `📋 prepared the following repos for codemods!\n· ${updatedRepositories.map(repo => repo.address).join('\n· ')}`,
+    `📋 prepared the following repos for codemods:\n· ${updatedRepositories.map(repo => repo.address).join('\n· ')}`,
   );
 
   return Object.fromEntries(
