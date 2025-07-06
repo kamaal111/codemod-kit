@@ -8,7 +8,7 @@ import type { Codemod, CodemodRunnerCodemod } from '../codemods/index.js';
 export async function makePullRequestsForCodemodResults<Tag = string, C extends Codemod = Codemod>(
   codemods: Array<CodemodRunnerCodemod<Tag, C>>,
   codemodResults: Record<string, Array<Result<{ hasChanges: boolean; content: string }, Error>>>,
-  repositories: Array<Repository>,
+  repositories: Array<Repository<Tag>>,
 ) {
   for (const [codemodName, codemodResult] of Object.entries(codemodResults)) {
     const codemod = codemods.find(c => c.name === codemodName);
@@ -21,7 +21,7 @@ export async function makePullRequestsForCodemodResults<Tag = string, C extends 
 export async function makePullRequestsForCodemodResult<Tag = string, C extends Codemod = Codemod>(
   codemod: CodemodRunnerCodemod<Tag, C>,
   codemodResult: Array<Result<{ hasChanges: boolean; content: string }, Error>>,
-  repositories: Array<Repository>,
+  repositories: Array<Repository<Tag>>,
 ) {
   const { success } = groupResults(codemodResult);
   const hasChanges = success.some(result => result.hasChanges);

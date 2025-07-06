@@ -9,26 +9,29 @@ import Branch from './branch.js';
 import { DefaultBranchRefSchema } from './schemas.js';
 import { tryCatch, tryCatchAsync } from '../utils/results.js';
 
-interface IRepository {
+interface IRepository<Tag> {
   name: string;
   address: string;
   path: string;
+  tags: Array<Tag> | Set<Tag>;
 }
 
-class Repository implements IRepository {
+class Repository<Tag = string> implements IRepository<Tag> {
   readonly name: string;
   readonly address: string;
   readonly path: string;
+  readonly tags: Array<Tag> | Set<Tag>;
 
   private currentBranch: types.Optional<Branch>;
 
-  private constructor(params: IRepository) {
+  private constructor(params: IRepository<Tag>) {
     this.name = params.name;
     this.address = params.address;
     this.path = params.path;
+    this.tags = params.tags;
   }
 
-  clone = async (): Promise<Result<void, GitError>> => {
+  clone = async (): Promise<Result<void, GitError<Tag>>> => {
     const cwd = this.path.split('/').slice(0, -1).join('/');
     const exec = $({ cwd });
     const cloneResult = await exec`git clone ${this.address}`;
@@ -44,7 +47,7 @@ class Repository implements IRepository {
     await tryCatchAsync(() => this.exec`git commit -m ${message} --no-verify`);
   };
 
-  push = async (): Promise<Result<void, GitError>> => {
+  push = async (): Promise<Result<void, GitError<Tag>>> => {
     const [remoteName, currentBranch, mainBranchNameResult] = await Promise.all([
       this.getRemoteName(),
       this.getCurrentBranch(),
@@ -62,7 +65,7 @@ class Repository implements IRepository {
     return ok();
   };
 
-  resetBranch = async (workingBranchName: string): Promise<Result<void, GitError>> => {
+  resetBranch = async (workingBranchName: string): Promise<Result<void, GitError<Tag>>> => {
     await this.exec`git add .`;
     await this.exec`git reset --hard`;
     await this.exec`git fetch`;
@@ -70,7 +73,7 @@ class Repository implements IRepository {
     return this.updateBranchToLatestMain(workingBranchName);
   };
 
-  updateBranchToLatestMain = async (workingBranchName: string): Promise<Result<void, GitError>> => {
+  updateBranchToLatestMain = async (workingBranchName: string): Promise<Result<void, GitError<Tag>>> => {
     const [remoteName, mainBranchNameResult] = await Promise.all([this.getRemoteName(), this.getMainBranchName()]);
     if (mainBranchNameResult.isErr()) return err(new RebaseError(this, { cause: mainBranchNameResult.error }));
     if (remoteName == null) return err(new RebaseError(this));
@@ -107,7 +110,7 @@ class Repository implements IRepository {
     return tryCatchAsync(() => this.exec`git branch -D ${branchName}`);
   };
 
-  prepareForUpdate = async (workingBranchName: string): Promise<Result<Repository, GitError>> => {
+  prepareForUpdate = async (workingBranchName: string): Promise<Result<Repository<Tag>, GitError<Tag>>> => {
     const checkoutBranchResult = await this.checkoutBranch(workingBranchName);
     if (checkoutBranchResult.isErr()) return err(checkoutBranchResult.error);
 
@@ -117,7 +120,7 @@ class Repository implements IRepository {
     return ok(this);
   };
 
-  getMainBranch = async (): Promise<Result<Branch, GitError>> => {
+  getMainBranch = async (): Promise<Result<Branch, GitError<Tag>>> => {
     const [branches, mainBranchNameResult] = await Promise.all([this.getBranches(), this.getMainBranchName()]);
     if (mainBranchNameResult.isErr()) return err(mainBranchNameResult.error);
 
@@ -136,7 +139,7 @@ class Repository implements IRepository {
   checkoutBranch = async (
     branchName: string,
     options?: { forceCreateNew: boolean },
-  ): Promise<Result<Branch, GitError>> => {
+  ): Promise<Result<Branch, GitError<Tag>>> => {
     const currentBranch = await this.getCurrentBranch();
     const forceCreateNew = options?.forceCreateNew ?? false;
     if (currentBranch != null && currentBranch.name === branchName && !forceCreateNew) {
@@ -219,7 +222,7 @@ class Repository implements IRepository {
     this.currentBranch = branch;
   };
 
-  private getMainBranchName = async (): Promise<Result<string, GitError>> => {
+  private getMainBranchName = async (): Promise<Result<string, GitError<Tag>>> => {
     const rawDefaultBranchRefResult = await this.exec`gh repo view --json defaultBranchRef`;
     if (rawDefaultBranchRefResult.code != null && rawDefaultBranchRefResult.code !== '0') {
       return err(new GetMainBranchError(this));
@@ -236,11 +239,19 @@ class Repository implements IRepository {
     return ok(defaultBranchRef.data.defaultBranchRef.name);
   };
 
-  static fromAddressAndCwd = ({ address, cwd }: { address: string; cwd: string }): types.Optional<Repository> => {
+  static fromAddressAndCwd = <Tag>({
+    address,
+    cwd,
+    tags,
+  }: {
+    address: string;
+    cwd: string;
+    tags: Array<Tag> | Set<Tag>;
+  }): types.Optional<Repository<Tag>> => {
     const name = Repository.getRepoNameFromRepoAddress(address);
     if (name == null) return null;
 
-    return new Repository({ name, address, path: path.resolve(cwd, name) });
+    return new Repository<Tag>({ name, address, path: path.resolve(cwd, name), tags });
   };
 
   private static getRepoNameFromRepoAddress = (repoAddress: string): types.Optional<string> => {

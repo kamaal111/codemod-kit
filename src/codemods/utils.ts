@@ -18,9 +18,9 @@ import type {
   RunCodemodOkResult,
   RunCodemodResult,
 } from './types.js';
-import { collectionIsEmpty } from '../utils/collections.js';
+import { collectionContains, collectionIsEmpty } from '../utils/collections.js';
 import type { ReplaceObjectProperty } from '../utils/type-utils.js';
-import { groupBy } from '../utils/arrays.js';
+import { groupBy, groupByFlat } from '../utils/arrays.js';
 import { cloneRepositories, type Repository } from '../git/index.js';
 import { groupResults } from '../utils/results.js';
 import { makePullRequestsForCodemodResults } from '../github/index.js';
@@ -43,39 +43,27 @@ export async function runCodemodsOnProjects<Tag = string, C extends Codemod = Co
   codemods: Array<CodemodRunnerCodemod<Tag, C>>,
   options: { workingDirectory: string; pushChanges: boolean },
 ) {
-  const clonedRepositories = await cloneRepositories(
-    repositoriesToClone.map(repo => repo.address),
-    options.workingDirectory,
-  );
+  const clonedRepositories = await cloneRepositories(repositoriesToClone, options.workingDirectory);
   console.log(
     `🖨️ cloned ${clonedRepositories.length} ${clonedRepositories.length === 1 ? 'repository' : 'repositories'}`,
   );
 
-  const mappingsByName = clonedRepositories.reduce<Record<string, { repository: Repository; tags: Set<Tag> }>>(
-    (acc, repository) => {
-      const tags = repositoriesToClone.find(({ address }) => address === repository.address)?.tags;
-      asserts.invariant(tags != null, 'Tags should be present');
-
-      return { ...acc, [repository.name]: { repository, tags } };
-    },
-    {},
-  );
-  const codemodResults = await runCodemodRunner(codemods, clonedRepositories, mappingsByName, options.workingDirectory);
+  const codemodResults = await runCodemodRunner(codemods, clonedRepositories, options.workingDirectory);
   if (options.pushChanges) {
     await makePullRequestsForCodemodResults(codemods, codemodResults, clonedRepositories);
   }
 }
 
 function codemodTargetFiltering<Tag = string, C extends Codemod = Codemod>(
-  mappingsByName: Record<string, { repository: Repository; tags: Set<Tag> }>,
+  repositories: Record<string, Repository<Tag>>,
   failedRepositoryAddressesMappedByCodemodNames: Record<string, Set<string>>,
 ): (filepath: string, codemod: CodemodRunnerCodemod<Tag, C>) => boolean {
   return (filepath, codemod) => {
     const projectName = filepath.split('/')[0];
     asserts.invariant(projectName != null, 'project name should be present');
 
-    const mapping = mappingsByName[projectName];
-    if (mapping == null) return false;
+    const repository = repositories[projectName];
+    if (repository == null) return false;
 
     const failedRepositoryAddressesSet = failedRepositoryAddressesMappedByCodemodNames[codemod.name];
     if (failedRepositoryAddressesSet == null || collectionIsEmpty(failedRepositoryAddressesSet)) {
@@ -83,16 +71,16 @@ function codemodTargetFiltering<Tag = string, C extends Codemod = Codemod>(
     }
 
     return (
-      !failedRepositoryAddressesSet.has(mapping.repository.address) &&
+      !failedRepositoryAddressesSet.has(repository.address) &&
       (collectionIsEmpty(codemod.tags) ||
-        collectionIsEmpty(mapping.tags) ||
-        [...codemod.tags].some(tag => mapping.tags.has(tag)))
+        collectionIsEmpty(repository.tags) ||
+        [...codemod.tags].some(tag => collectionContains(repository.tags, tag)))
     );
   };
 }
 
 async function codemodPreCodemodRun<Tag = string, C extends Codemod = Codemod>(
-  repositories: Array<Repository>,
+  repositories: Array<Repository<Tag>>,
   codemod: CodemodRunnerCodemod<Tag, C>,
 ): Promise<Set<string>> {
   const preparationResults = await Promise.all(repositories.map(repo => repo.prepareForUpdate(codemod.name)));
@@ -111,12 +99,12 @@ async function codemodPostTransform(transformedContent: string) {
 
 async function runCodemodRunner<Tag = string, C extends Codemod = Codemod>(
   codemods: Array<CodemodRunnerCodemod<Tag, C>>,
-  repositories: Array<Repository>,
-  mappingsByName: Record<string, { repository: Repository; tags: Set<Tag> }>,
+  repositories: Array<Repository<Tag>>,
   workingDirectory: string,
 ): Promise<Record<string, Array<RunCodemodResult>>> {
   const rootPaths = repositories.map(repository => repository.path);
   const failedRepositoryAddressesMappedByCodemodNames: Record<string, Set<string>> = {};
+  const repoMappedByName = groupByFlat(repositories, 'name');
 
   return runCodemods(codemods, workingDirectory, {
     rootPaths,
@@ -124,7 +112,7 @@ async function runCodemodRunner<Tag = string, C extends Codemod = Codemod>(
       preCodemodRun: async codemod => {
         failedRepositoryAddressesMappedByCodemodNames[codemod.name] = await codemodPreCodemodRun(repositories, codemod);
       },
-      targetFiltering: codemodTargetFiltering(mappingsByName, failedRepositoryAddressesMappedByCodemodNames),
+      targetFiltering: codemodTargetFiltering(repoMappedByName, failedRepositoryAddressesMappedByCodemodNames),
       postTransform: codemodPostTransform,
     },
   });

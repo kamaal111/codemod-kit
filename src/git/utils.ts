@@ -1,20 +1,23 @@
 import { $, type ExecaScriptMethod } from 'execa';
 import { ok, type Result } from 'neverthrow';
-import { arrays, type types } from '@kamaalio/kamaal';
+import { arrays } from '@kamaalio/kamaal';
 
 import { CloneError } from './errors.js';
 import Repository from './repository.js';
 
-type DedupeResult = {
-  result: Array<Repository>;
+type DedupeResult<Tag> = {
+  result: Array<Repository<Tag>>;
   names: Array<string>;
 };
 
-export async function cloneRepositories(repoAddresses: Array<string>, location: string): Promise<Array<Repository>> {
+export async function cloneRepositories<Tag = string>(
+  repositories: Array<{ address: string; tags: Array<Tag> | Set<Tag> }>,
+  location: string,
+): Promise<Array<Repository<Tag>>> {
   await $`mkdir -p ${location}`;
   const exec = $({ cwd: location });
-  const dedupedRepos = dedupeRepositoriesToClone(repoAddresses, location);
-  const existingRepositories = await getExistingRepositories(exec, repoAddresses);
+  const dedupedRepos = dedupeRepositoriesToClone(repositories, location);
+  const existingRepositories = await getExistingRepositories(exec, repositories);
   const results = await Promise.all(dedupedRepos.map(cloneRepositoryInternal(existingRepositories)));
 
   return arrays.compactMap(results, (result, index) => {
@@ -28,30 +31,24 @@ export async function cloneRepositories(repoAddresses: Array<string>, location: 
   });
 }
 
-export async function cloneRepository(repoAddress: string, location: string): Promise<types.Optional<Repository>> {
-  const repositories = await cloneRepositories([repoAddress], location);
-
-  return repositories[0];
-}
-
-async function getExistingRepositories(
+async function getExistingRepositories<Tag>(
   exec: ExecaScriptMethod<{ cwd: string }>,
-  repoAddresses: Array<string>,
-): Promise<Array<Repository>> {
+  repositories: Array<{ address: string; tags: Array<Tag> | Set<Tag> }>,
+): Promise<Array<Repository<Tag>>> {
   const lsResult = await exec`ls`;
   const existingNames = new Set(lsResult.stdout.split('\n'));
 
-  return arrays.compactMap(repoAddresses, address => {
-    const repository = Repository.fromAddressAndCwd({ address, cwd: lsResult.cwd });
+  return arrays.compactMap(repositories, repo => {
+    const repository = Repository.fromAddressAndCwd({ address: repo.address, cwd: lsResult.cwd, tags: repo.tags });
     if (repository == null) return null;
     if (!existingNames.has(repository.name)) return null;
     return repository;
   });
 }
 
-function cloneRepositoryInternal(
-  existingRepositories: Array<Repository>,
-): (repository: Repository) => Promise<Result<void, CloneError>> {
+function cloneRepositoryInternal<Tag>(
+  existingRepositories: Array<Repository<Tag>>,
+): (repository: Repository<Tag>) => Promise<Result<void, CloneError<Tag>>> {
   const existingRepositoryAddresses = new Set(existingRepositories.map(repo => repo.address));
 
   return async repository => {
@@ -60,10 +57,13 @@ function cloneRepositoryInternal(
   };
 }
 
-function dedupeRepositoriesToClone(repoAddresses: Array<string>, cwd: string): Array<Repository> {
-  const initialDedupeResult: DedupeResult = { result: [], names: [] };
-  const dedupedRepos = repoAddresses.reduce<DedupeResult>((acc, repoAddress) => {
-    const repository = Repository.fromAddressAndCwd({ address: repoAddress, cwd });
+function dedupeRepositoriesToClone<Tag>(
+  repositories: Array<{ address: string; tags: Array<Tag> | Set<Tag> }>,
+  cwd: string,
+): Array<Repository<Tag>> {
+  const initialDedupeResult: DedupeResult<Tag> = { result: [], names: [] };
+  const dedupedRepos = repositories.reduce<DedupeResult<Tag>>((acc, repo) => {
+    const repository = Repository.fromAddressAndCwd({ address: repo.address, cwd, tags: repo.tags });
     if (repository == null) return acc;
     if (acc.names.includes(repository.name)) return acc;
 
