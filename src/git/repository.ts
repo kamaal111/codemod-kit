@@ -31,6 +31,13 @@ class Repository<Tag = string> implements IRepository<Tag> {
     this.tags = params.tags;
   }
 
+  copy = async (newPath: string): Promise<Repository<Tag>> => {
+    await $`rm -rf ${newPath}`;
+    await $`cp -R ${this.path} ${newPath}`;
+
+    return new Repository({ name: this.name, address: this.address, path: newPath, tags: this.tags });
+  };
+
   clone = async (): Promise<Result<void, GitError<Tag>>> => {
     const cwd = this.path.split('/').slice(0, -1).join('/');
     const exec = $({ cwd });

@@ -6,7 +6,7 @@ import { err, ok } from 'neverthrow';
 import { parseAsync, type Rule, type Edit, type SgRoot, type SgNode } from '@ast-grep/napi';
 import type { Kinds, TypesMap } from '@ast-grep/napi/types/staticTypes.js';
 import type { NapiLang } from '@ast-grep/napi/types/lang.js';
-import { arrays, asserts, type types } from '@kamaalio/kamaal';
+import { arrays, asserts, objects, type types } from '@kamaalio/kamaal';
 
 import { LANG_TO_EXTENSIONS_MAPPING } from './constants.js';
 import type {
@@ -102,20 +102,78 @@ async function runCodemodRunner<Tag = string, C extends Codemod = Codemod>(
   repositories: Array<Repository<Tag>>,
   workingDirectory: string,
 ): Promise<Record<string, Array<RunCodemodResult>>> {
-  const rootPaths = repositories.map(repository => repository.path);
-  const failedRepositoryAddressesMappedByCodemodNames: Record<string, Set<string>> = {};
-  const repoMappedByName = groupByFlat(repositories, 'name');
+  const codemodRepositoriesMappedByCodemodName = await prepareRepositoriesForCodemods(
+    repositories,
+    codemods,
+    workingDirectory,
+  );
+  const results: Record<string, Array<RunCodemodResult>> = Object.fromEntries(
+    await Promise.all(
+      codemods.map<Promise<[string, Array<RunCodemodResult>]>>(async codemod => {
+        const codemodRepositories = codemodRepositoriesMappedByCodemodName[codemod.name];
+        asserts.invariant(codemodRepositories != null, 'Codemod repositories should be present');
 
-  return runCodemods(codemods, workingDirectory, {
-    rootPaths,
-    hooks: {
-      preCodemodRun: async codemod => {
-        failedRepositoryAddressesMappedByCodemodNames[codemod.name] = await codemodPreCodemodRun(repositories, codemod);
-      },
-      targetFiltering: codemodTargetFiltering(repoMappedByName, failedRepositoryAddressesMappedByCodemodNames),
-      postTransform: codemodPostTransform,
-    },
-  });
+        const failedRepositoryAddressesMappedByCodemodNames: Record<string, Set<string>> = {};
+        const result = await runCodemod(codemod, workingDirectory, {
+          rootPaths: codemodRepositories.map(repository => repository.path),
+          hooks: {
+            preCodemodRun: async codemod => {
+              failedRepositoryAddressesMappedByCodemodNames[codemod.name] = await codemodPreCodemodRun(
+                repositories,
+                codemod,
+              );
+            },
+            targetFiltering: codemodTargetFiltering(
+              groupByFlat(codemodRepositories, 'name'),
+              failedRepositoryAddressesMappedByCodemodNames,
+            ),
+            postTransform: codemodPostTransform,
+          },
+        });
+
+        return [codemod.name, result];
+      }),
+    ),
+  );
+
+  return results;
+}
+
+async function prepareRepositoriesForCodemods<Tag, C extends Codemod>(
+  repositories: Array<Repository<Tag>>,
+  codemods: Array<CodemodRunnerCodemod<Tag, C>>,
+  workingDirectory: string,
+): Promise<Record<string, Array<Repository<Tag>>>> {
+  const reposMappedByMainBranchName = Object.fromEntries(
+    await Promise.all(
+      repositories.map<Promise<[string, Repository<Tag>]>>(async repo => {
+        const mainBranchResult = await repo.getMainBranch();
+        if (mainBranchResult.isErr()) throw mainBranchResult.error;
+
+        return [mainBranchResult.value.name, repo];
+      }),
+    ),
+  );
+  const updatedRepositories = await Promise.all(
+    objects.toEntries(reposMappedByMainBranchName).map(async ([mainBranchName, repo]) => {
+      const prepareResult = await repo.prepareForUpdate(mainBranchName);
+      if (prepareResult.isErr()) throw prepareResult.error;
+
+      return prepareResult.value;
+    }),
+  );
+
+  return Object.fromEntries(
+    await Promise.all(
+      codemods.map<Promise<[string, Array<Repository<Tag>>]>>(async codemod => {
+        const codeRepositories = await Promise.all(
+          updatedRepositories.map(repo => repo.copy(path.resolve(workingDirectory, codemod.name, repo.name))),
+        );
+
+        return [codemod.name, codeRepositories];
+      }),
+    ),
+  );
 }
 
 export async function runCodemods<C extends Codemod = Codemod>(
