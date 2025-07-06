@@ -114,8 +114,9 @@ async function runCodemodRunner<Tag = string, C extends Codemod = Codemod>(
         const codemodRepositories = codemodRepositoriesMappedByCodemodName[codemod.name];
         asserts.invariant(codemodRepositories != null, 'Codemod repositories should be present');
 
+        const codemodWorkingDirectory = path.resolve(workingDirectory, codemod.name.replace(/\//g, '-'));
         const failedRepositoryAddressesMappedByCodemodNames: Record<string, Set<string>> = {};
-        const result = await runCodemod(codemod, workingDirectory, {
+        const result = await runCodemod(codemod, codemodWorkingDirectory, {
           rootPaths: codemodRepositories.map(repository => repository.path),
           hooks: {
             preCodemodRun: async codemod => {
@@ -163,14 +164,23 @@ async function prepareRepositoriesForCodemods<Tag, C extends Codemod>(
       return prepareResult.value;
     }),
   );
+  console.log(
+    `📋 prepared the following repos for codemods!\n${updatedRepositories.map(repo => repo.address).join('\n')}`,
+  );
 
   return Object.fromEntries(
     await Promise.all(
       codemods.map<Promise<[string, Array<Repository<Tag>>]>>(async codemod => {
         const codemodWorkingDirectory = path.resolve(workingDirectory, codemod.name.replace(/\//g, '-'));
         await $`mkdir -p ${codemodWorkingDirectory}`;
+
         const codeRepositories = await Promise.all(
-          updatedRepositories.map(repo => repo.copy(path.join(codemodWorkingDirectory, repo.name))),
+          updatedRepositories.map(repo => {
+            const newPath = path.join(codemodWorkingDirectory, repo.name);
+            console.log(`©️ copying ${repo.name} -> ${newPath}`);
+
+            return repo.copy(newPath);
+          }),
         );
 
         return [codemod.name, codeRepositories];
