@@ -1,5 +1,6 @@
 import { $ } from 'execa';
 import type { Result } from 'neverthrow';
+import { asserts } from '@kamaalio/kamaal';
 
 import { groupResults, tryCatchAsync } from '../utils/results.js';
 import type { Repository } from '../git/index.js';
@@ -8,11 +9,14 @@ import type { Codemod, CodemodRunnerCodemod } from '../codemods/index.js';
 export async function makePullRequestsForCodemodResults<Tag = string, C extends Codemod = Codemod>(
   codemods: Array<CodemodRunnerCodemod<Tag, C>>,
   codemodResults: Record<string, Array<Result<{ hasChanges: boolean; content: string }, Error>>>,
-  repositories: Array<Repository<Tag>>,
+  repositoriesMappedByCodemodName: Record<string, Array<Repository<Tag>>>,
 ) {
   for (const [codemodName, codemodResult] of Object.entries(codemodResults)) {
     const codemod = codemods.find(c => c.name === codemodName);
-    if (codemod == null) throw new Error('Invariant found codemod should be present');
+    asserts.invariant(codemod != null, 'Codemod should have been present');
+
+    const repositories = repositoriesMappedByCodemodName[codemodName];
+    asserts.invariant(repositories != null, 'Repositories should have been present');
 
     await makePullRequestsForCodemodResult(codemod, codemodResult, repositories);
   }
