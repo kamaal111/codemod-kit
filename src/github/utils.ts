@@ -58,5 +58,5 @@ export async function makePullRequestsForCodemodResult<Tag = string, C extends C
 }
 
 async function makePullRequest(params: { workingDirectory: string; title: string }) {
-  return tryCatchAsync(() => $({ cwd: params.workingDirectory })`gh pr create --title ${params.title} --fill`);
+  return tryCatchAsync(() => $({ cwd: params.workingDirectory })`gh pr create --draft --title ${params.title} --fill`);
 }
