@@ -7,8 +7,7 @@ import type { Result } from 'neverthrow';
 export type RunCodemodOkResult = { hasChanges: boolean; content: string; fullPath: string; root: string };
 export type RunCodemodResult = Result<RunCodemodOkResult, Error>;
 
-type CodemodOptions = { postTransform?: Record<string, unknown> };
-
+export type CodemodOptions = { postTransform?: Record<string, unknown> };
 export type Codemod = {
   name: string;
   languages: Set<NapiLang> | Array<NapiLang>;

@@ -15,4 +15,5 @@ export {
   type RunCodemodResult,
   type CodemodRunnerCodemod,
   type RepositoryToClone,
+  type CodemodOptions,
 } from './codemods/index.js';

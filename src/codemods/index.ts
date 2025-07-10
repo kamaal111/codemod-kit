@@ -17,4 +17,5 @@ export type {
   RunCodemodResult,
   CodemodRunnerCodemod,
   RepositoryToClone,
+  CodemodOptions,
 } from './types.js';
