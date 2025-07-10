@@ -7,11 +7,18 @@ import type { Result } from 'neverthrow';
 export type RunCodemodOkResult = { hasChanges: boolean; content: string; fullPath: string; root: string };
 export type RunCodemodResult = Result<RunCodemodOkResult, Error>;
 
+type CodemodOptions = { postTransform?: Record<string, unknown> };
+
 export type Codemod = {
   name: string;
   languages: Set<NapiLang> | Array<NapiLang>;
-  transformer: (content: string, filename?: types.Optional<string>) => Promise<string>;
-  postTransform?: (results: { root: string; results: Array<RunCodemodOkResult> }) => Promise<void>;
+  options?: CodemodOptions;
+  transformer: (
+    content: string,
+    filename?: types.Optional<string>,
+    codemod?: types.Optional<Codemod>,
+  ) => Promise<string>;
+  postTransform?: (results: { root: string; results: Array<RunCodemodOkResult> }, codemod: Codemod) => Promise<void>;
   targetFiltering?: (filepath: string, codemod: Codemod) => boolean;
 };
 

@@ -262,7 +262,7 @@ export async function runCodemod<C extends Codemod = Codemod>(
     root: string;
     results: Array<RunCodemodOkResult>;
   }> = rootPaths.map(root => ({ root, results: successesGroupedByRoot[root] ?? [] }));
-  await Promise.all(rootPathsWithResults.map(r => (codemod.postTransform ?? (async () => {}))(r)));
+  await Promise.all(rootPathsWithResults.map(r => (codemod.postTransform ?? (async () => {}))(r, codemod)));
 
   return results;
 }
