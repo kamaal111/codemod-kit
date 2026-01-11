@@ -31,32 +31,32 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@ast-grep/napi": "^0.38.5",
-    "@kamaalio/kamaal": "^0.7.8",
-    "execa": "^9.6.0",
+    "@ast-grep/napi": "^0.40.5",
+    "@kamaalio/kamaal": "^0.8.0",
+    "execa": "^9.6.1",
     "fast-glob": "^3.3.3",
     "neverthrow": "^8.2.0",
-    "zod": "^3.25.67"
+    "zod": "^4.3.5"
   },
   "devDependencies": {
-    "@eslint/js": "^9.29.0",
+    "@eslint/js": "^9.39.2",
     "@kamaalio/prettier-config": "^0.1.2",
-    "@rslib/core": "^0.10.2",
-    "@types/node": "^22.15.32",
-    "@vitest/coverage-v8": "3.2.4",
-    "eslint": "^9.29.0",
-    "globals": "^16.2.0",
+    "@rslib/core": "^0.19.1",
+    "@types/node": "^25.0.6",
+    "@vitest/coverage-v8": "^4.0.16",
+    "eslint": "^9.39.2",
+    "globals": "^17.0.0",
     "husky": "^9.1.7",
-    "lint-staged": "^16.1.2",
-    "prettier": "^3.5.3",
-    "tsx": "^4.20.3",
-    "typescript": "^5.8.3",
-    "typescript-eslint": "^8.34.1",
-    "vitest": "^3.2.4"
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.7.4",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.52.0",
+    "vitest": "^4.0.16"
   },
   "lint-staged": {
     "**/*": "prettier --write --ignore-unknown"
   },
   "prettier": "@kamaalio/prettier-config",
-  "packageManager": "pnpm@10.12.4"
+  "packageManager": "pnpm@10.28.0"
 }

@@ -40,6 +40,7 @@ format-check:
     {{ PNR }} format:check
 
 # Run quality checks
+[parallel]
 quality: lint format-check type-check
 
 # Install dependencies
