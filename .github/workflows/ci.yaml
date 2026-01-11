@@ -13,43 +13,29 @@ jobs:
     timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
-      - name: Git - Checkout
-        uses: actions/checkout@v4
-
-      - name: Install just
-        uses: taiki-e/install-action@just
-
-      - name: Use Node 22.x
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: taiki-e/install-action@v2
         with:
-          node-version: 22.x
+          tool: just
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
           registry-url: https://registry.npmjs.org
-
-      - name: Bootstrap
-        run: just bootstrap-ci
-
-      - name: Run quality checks
-        run: just quality
+      - run: just bootstrap-ci
+      - run: just quality
 
   test:
     name: Test
     timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
-      - name: Git - Checkout
-        uses: actions/checkout@v4
-
-      - name: Install just
-        uses: taiki-e/install-action@just
-
-      - name: Use Node 22.x
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: taiki-e/install-action@v2
         with:
-          node-version: 22.x
+          tool: just
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
           registry-url: https://registry.npmjs.org
-
-      - name: Bootstrap
-        run: just bootstrap-ci
-
-      - name: Run tests
-        run: just test-cov
+      - run: just bootstrap-ci
+      - run: just test-cov

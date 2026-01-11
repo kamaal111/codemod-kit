@@ -1,30 +1,25 @@
 name: Release
+
 on:
   push:
     tags:
       - '*'
+
 jobs:
   build:
     name: Deploy
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Install just
-        uses: taiki-e/install-action@just
-
-      - name: Use Node 22.x
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: taiki-e/install-action@v2
         with:
-          node-version: 22.x
+          tool: just
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
           registry-url: https://registry.npmjs.org
-
-      - name: Bootstrap
-        run: just bootstrap-ci
-
-      - name: Publish ${{ github.ref_name }}
-        run: just publish
+      - run: just bootstrap-ci
+      - run: just publish
         env:
           VERSION: ${{ github.ref_name }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
