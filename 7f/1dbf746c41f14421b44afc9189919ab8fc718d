@@ -1,0 +1,26 @@
+pnpm-workspace.yaml
+  s_6725cae5e348e0::t_6de06d984a4853 1-3
+package.json
+  s_6725cae5e348e0::t_6de06d984a4853 61-67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "7f1dbf746c41f14421b44afc9189919ab8fc718d",
+  "prompts": {},
+  "humans": {
+    "h_66e824d23aae73": {
+      "author": "Kamaal Farah <kamaal.f1@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_6725cae5e348e0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ffca8-353a-7fe3-a72b-dd1677b1a456",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "Kamaal Farah <kamaal.f1@gmail.com>"
+    }
+  }
+}
