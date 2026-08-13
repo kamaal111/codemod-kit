@@ -1,11 +1,11 @@
 import path from 'node:path';
 
+import { arrays, type types } from '@kamaalio/kamaal';
 import { $ } from 'execa';
 import { err, ok, type ResultAsync, type Result } from 'neverthrow';
-import { arrays, type types } from '@kamaalio/kamaal';
 
-import { CheckoutError, CloneError, GetMainBranchError, GitError, PushError, RebaseError } from './errors.js';
 import Branch from './branch.js';
+import { CheckoutError, CloneError, GetMainBranchError, GitError, PushError, RebaseError } from './errors.js';
 import { DefaultBranchRefSchema } from './schemas.js';
 import { tryCatch, tryCatchAsync } from '../utils/results.js';
 

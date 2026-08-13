@@ -1,13 +1,13 @@
-import path from 'node:path';
 import fs from 'node:fs/promises';
+import path from 'node:path';
 
+import { parseAsync, type Rule, type Edit, type SgRoot, type SgNode } from '@ast-grep/napi';
+import type { NapiLang } from '@ast-grep/napi/types/lang.js';
+import type { Kinds, TypesMap } from '@ast-grep/napi/types/staticTypes.js';
+import { arrays, asserts, type types } from '@kamaalio/kamaal';
 import { $ } from 'execa';
 import fg from 'fast-glob';
 import { err, ok } from 'neverthrow';
-import { parseAsync, type Rule, type Edit, type SgRoot, type SgNode } from '@ast-grep/napi';
-import type { Kinds, TypesMap } from '@ast-grep/napi/types/staticTypes.js';
-import type { NapiLang } from '@ast-grep/napi/types/lang.js';
-import { arrays, asserts, type types } from '@kamaalio/kamaal';
 
 import { LANG_TO_EXTENSIONS_MAPPING } from './constants.js';
 import type {
@@ -19,12 +19,12 @@ import type {
   RunCodemodOkResult,
   RunCodemodResult,
 } from './types.js';
-import { collectionContains, collectionIsEmpty } from '../utils/collections.js';
-import type { ReplaceObjectProperty } from '../utils/type-utils.js';
-import { groupBy, groupByFlat } from '../utils/arrays.js';
 import { cloneRepositories, type Repository } from '../git/index.js';
-import { groupResults } from '../utils/results.js';
 import { makePullRequestsForCodemodResults } from '../github/index.js';
+import { groupBy, groupByFlat } from '../utils/arrays.js';
+import { collectionContains, collectionIsEmpty } from '../utils/collections.js';
+import { groupResults } from '../utils/results.js';
+import type { ReplaceObjectProperty } from '../utils/type-utils.js';
 
 type RunCodemodHooks<C extends Codemod = Codemod> = {
   targetFiltering?: (filepath: string, codemod: C) => boolean;
@@ -444,7 +444,7 @@ function extractMetaVariables(
   node: SgNode<TypesMap, Kinds<TypesMap>>,
   rule: Rule<TypesMap>,
 ): Record<string, { start: number; end: number; value: string; original: string }> {
-  const pattern = rule.pattern?.toString();
+  const pattern = typeof rule.pattern === 'string' ? rule.pattern : rule.pattern?.context;
   if (pattern == null) return {};
 
   // Find all meta variables in the pattern (starting with $ or $$$ followed by capital letters)

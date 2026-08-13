@@ -1,11 +1,16 @@
 {
   "name": "@kamaalio/codemod-kit",
   "version": "0.0.1",
-  "type": "module",
-  "author": "Kamaal Farah",
-  "license": "MIT",
-  "repository": "kamaal111/codemod-kit",
   "bugs": "https://github.com/kamaal111/codemod-kit/issues",
+  "license": "MIT",
+  "author": "Kamaal Farah",
+  "repository": "kamaal111/codemod-kit",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -13,18 +18,13 @@
       "require": "./dist/index.cjs"
     }
   },
-  "main": "./dist/index.cjs",
-  "types": "./dist/index.d.ts",
-  "files": [
-    "dist"
-  ],
   "scripts": {
     "build": "rslib build",
     "build:clean": "rm -rf dist tsconfig.tsbuildinfo && pnpm run build",
     "dev": "rslib build --watch",
-    "format": "prettier --write .",
-    "format:check": "prettier . --check",
-    "lint": "eslint .",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "lint": "oxlint",
     "prepare": "husky",
     "test": "vitest run",
     "test:cov": "vitest run --coverage",
@@ -39,25 +39,23 @@
     "zod": "^4.3.5"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.2",
-    "@kamaalio/prettier-config": "^0.1.2",
     "@rslib/core": "^0.19.1",
     "@types/node": "^25.0.6",
     "@vitest/coverage-v8": "^4.0.16",
-    "eslint": "^9.39.2",
-    "globals": "^17.0.0",
+    "eslint-plugin-import": "^2.32.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
-    "prettier": "^3.7.4",
+    "oxfmt": "^0.60.0",
+    "oxlint": "^1.78.0",
+    "oxlint-tsgolint": "^7.0.2001",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.52.0",
     "vitest": "^4.0.16"
   },
   "lint-staged": {
-    "**/*": "prettier --write --ignore-unknown"
+    "*.{js,mjs,cjs,ts}": "pnpm run lint",
+    "*": "oxfmt --no-error-on-unmatched-pattern"
   },
-  "prettier": "@kamaalio/prettier-config",
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
