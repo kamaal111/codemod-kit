@@ -1,0 +1,24 @@
+.github/workflows/release.yaml
+  s_c582a2f9826bbb::t_0e1dbd739a0d39 8-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "fd8cd7f550480130ccbbc37a093fff84d3c2f23f",
+  "prompts": {},
+  "humans": {
+    "h_66e824d23aae73": {
+      "author": "Kamaal Farah <kamaal.f1@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_c582a2f9826bbb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ff9ff-fb42-7692-8e5f-27e5dfde8c99",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "Kamaal Farah <kamaal.f1@gmail.com>"
+    }
+  }
+}
