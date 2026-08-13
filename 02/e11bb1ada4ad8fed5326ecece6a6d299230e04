@@ -1,0 +1,32 @@
+tests/codemods/run-codemod.test.ts
+  s_6401e77571838d::t_fe01564eadbc11 1-71
+src/codemods/utils.ts
+  s_6401e77571838d::t_3f01f703f72880 191-192,200-261,278,280,282,286,291-334
+  s_6401e77571838d::t_fd80cc3020667f 335
+tests/tsconfig.json
+  s_ece236f7187e53::t_a8ba91e0f53719 4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "02e11bb1ada4ad8fed5326ecece6a6d299230e04",
+  "prompts": {},
+  "sessions": {
+    "s_6401e77571838d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f020a9a7-b8e0-4357-b198-bd74b99c52f5",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "Kamaal Farah <kamaal.f1@gmail.com>"
+    },
+    "s_ece236f7187e53": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ff9f3-c1c4-7213-b01d-89e8d58b2b32",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": null
+    }
+  }
+}
