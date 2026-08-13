@@ -58,5 +58,11 @@
     "**/*": "prettier --write --ignore-unknown"
   },
   "prettier": "@kamaalio/prettier-config",
-  "packageManager": "pnpm@10.28.0"
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "11.17.0",
+      "onFail": "download"
+    }
+  }
 }
