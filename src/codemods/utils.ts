@@ -188,16 +188,8 @@ export async function runCodemods<C extends Codemod = Codemod>(
   return results;
 }
 
-export async function runCodemod<C extends Codemod = Codemod>(
-  codemod: C,
-  transformationPath: string,
-  options?: RunCodemodOptions<C>,
-): Promise<Array<RunCodemodResult>> {
-  const { hooks, log: enableLogging, dry: runInDryMode, rootPaths } = defaultedOptions(options);
-  await hooks.preCodemodRun(codemod);
-
-  const globItems = await fg.glob(['**/*'], { cwd: transformationPath });
-  const extensions = new Set(
+function getSupportedExtensions<C extends Codemod = Codemod>(codemod: C): Set<string> {
+  return new Set(
     Array.from(codemod.languages).reduce<Array<string>>((acc, language) => {
       const mappedExtensions = LANG_TO_EXTENSIONS_MAPPING[language.toLowerCase()];
       if (mappedExtensions == null) return acc;
@@ -205,6 +197,68 @@ export async function runCodemod<C extends Codemod = Codemod>(
       return acc.concat(Array.from(mappedExtensions));
     }, []),
   );
+}
+
+async function transformFile<C extends Codemod = Codemod>(
+  codemod: C,
+  fullPath: string,
+  filepath: string,
+  hooks: Required<RunCodemodHooks<C>>,
+  enableLogging: boolean,
+  runInDryMode: boolean,
+  root: string,
+): Promise<RunCodemodResult> {
+  try {
+    const content = await fs.readFile(fullPath, { encoding: 'utf-8' });
+    const modifiedContent = await codemod.transformer(content, fullPath);
+    const hasChanges = modifiedContent !== content;
+    if (hasChanges) {
+      const transformedContent = await hooks.postTransform(modifiedContent, codemod);
+      if (!runInDryMode) {
+        await fs.writeFile(fullPath, transformedContent);
+      }
+      if (enableLogging) {
+        console.log(`🚀 finished '${codemod.name}'`, { filename: filepath });
+      }
+    }
+
+    return ok({ hasChanges, content: modifiedContent, fullPath, root });
+  } catch (error) {
+    if (enableLogging) {
+      console.error(`❌ '${codemod.name}' failed to parse file`, filepath, error);
+    }
+
+    return err(error as Error);
+  }
+}
+
+async function runPostTransformHook<C extends Codemod = Codemod>(
+  codemod: C,
+  results: Array<RunCodemodResult>,
+  rootPaths: Array<string>,
+): Promise<void> {
+  const successes: Array<RunCodemodOkResult> = arrays.compactMap(results, result => {
+    if (result.isErr()) return null;
+    return result.value;
+  });
+  const successesGroupedByRoot = groupBy(successes, 'root');
+  const rootPathsWithResults: Array<{
+    root: string;
+    results: Array<RunCodemodOkResult>;
+  }> = rootPaths.map(root => ({ root, results: successesGroupedByRoot[root] ?? [] }));
+  await Promise.all(rootPathsWithResults.map(r => (codemod.postTransform ?? (async () => {}))(r, codemod)));
+}
+
+async function runCodemodOnDirectory<C extends Codemod = Codemod>(
+  codemod: C,
+  transformationPath: string,
+  hooks: Required<RunCodemodHooks<C>>,
+  enableLogging: boolean,
+  runInDryMode: boolean,
+  rootPaths: Array<string>,
+): Promise<Array<RunCodemodResult>> {
+  const globItems = await fg.glob(['**/*'], { cwd: transformationPath });
+  const extensions = getSupportedExtensions(codemod);
   const codemodTargetFiltering = codemod.targetFiltering ?? (() => true);
   const targets = globItems.filter(filepath => {
     if (!hooks.targetFiltering(filepath, codemod)) return false;
@@ -221,50 +275,62 @@ export async function runCodemod<C extends Codemod = Codemod>(
   }
 
   const results: Array<RunCodemodResult> = await Promise.all(
-    targets.map(async filepath => {
+    targets.map(filepath => {
       const fullPath = path.join(transformationPath, filepath);
-      try {
-        const content = await fs.readFile(fullPath, { encoding: 'utf-8' });
-        const modifiedContent = await codemod.transformer(content, fullPath);
-        const hasChanges = modifiedContent !== content;
-        if (hasChanges) {
-          const transformedContent = await hooks.postTransform(modifiedContent, codemod);
-          if (!runInDryMode) {
-            await fs.writeFile(fullPath, transformedContent);
-          }
-          if (enableLogging) {
-            console.log(`🚀 finished '${codemod.name}'`, { filename: filepath });
-          }
-        }
+      const root = path.resolve(transformationPath, filepath.split('/')[0]);
 
-        return ok({
-          hasChanges,
-          content: modifiedContent,
-          fullPath,
-          root: path.resolve(transformationPath, filepath.split('/')[0]),
-        });
-      } catch (error) {
-        if (enableLogging) {
-          console.error(`❌ '${codemod.name}' failed to parse file`, filepath, error);
-        }
-
-        return err(error as Error);
-      }
+      return transformFile(codemod, fullPath, filepath, hooks, enableLogging, runInDryMode, root);
     }),
   );
 
-  const successes: Array<RunCodemodOkResult> = arrays.compactMap(results, result => {
-    if (result.isErr()) return null;
-    return result.value;
-  });
-  const successesGroupedByRoot = groupBy(successes, 'root');
-  const rootPathsWithResults: Array<{
-    root: string;
-    results: Array<RunCodemodOkResult>;
-  }> = rootPaths.map(root => ({ root, results: successesGroupedByRoot[root] ?? [] }));
-  await Promise.all(rootPathsWithResults.map(r => (codemod.postTransform ?? (async () => {}))(r, codemod)));
+  await runPostTransformHook(codemod, results, rootPaths);
 
   return results;
+}
+
+async function runCodemodOnFile<C extends Codemod = Codemod>(
+  codemod: C,
+  transformationPath: string,
+  hooks: Required<RunCodemodHooks<C>>,
+  enableLogging: boolean,
+  runInDryMode: boolean,
+  rootPaths: Array<string>,
+): Promise<Array<RunCodemodResult>> {
+  const filepath = path.basename(transformationPath);
+  const extensions = getSupportedExtensions(codemod);
+  const codemodTargetFiltering = codemod.targetFiltering ?? (() => true);
+  const isTarget =
+    hooks.targetFiltering(filepath, codemod) &&
+    codemodTargetFiltering(filepath, codemod) &&
+    (collectionIsEmpty(extensions) || extensions.has(path.extname(filepath)));
+  if (!isTarget) return [];
+
+  if (enableLogging) {
+    console.log(`🧉 '${codemod.name}' targeting 1 file to transform, chill and grab some maté`);
+  }
+
+  const fullPath = path.resolve(transformationPath);
+  const root = path.dirname(fullPath);
+  const results = [await transformFile(codemod, fullPath, filepath, hooks, enableLogging, runInDryMode, root)];
+
+  await runPostTransformHook(codemod, results, rootPaths);
+
+  return results;
+}
+
+export async function runCodemod<C extends Codemod = Codemod>(
+  codemod: C,
+  transformationPath: string,
+  options?: RunCodemodOptions<C>,
+): Promise<Array<RunCodemodResult>> {
+  const { hooks, log: enableLogging, dry: runInDryMode, rootPaths } = defaultedOptions(options);
+  await hooks.preCodemodRun(codemod);
+
+  const stats = await fs.stat(transformationPath);
+
+  return stats.isFile()
+    ? runCodemodOnFile(codemod, transformationPath, hooks, enableLogging, runInDryMode, rootPaths)
+    : runCodemodOnDirectory(codemod, transformationPath, hooks, enableLogging, runInDryMode, rootPaths);
 }
 
 export function traverseUp(
