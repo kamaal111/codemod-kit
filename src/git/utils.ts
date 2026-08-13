@@ -1,8 +1,8 @@
+import { arrays } from '@kamaalio/kamaal';
 import { $, type ExecaScriptMethod } from 'execa';
 import { ok, type Result } from 'neverthrow';
-import { arrays } from '@kamaalio/kamaal';
 
-import { CloneError } from './errors.js';
+import type { CloneError } from './errors.js';
 import Repository from './repository.js';
 
 type DedupeResult<Tag> = {

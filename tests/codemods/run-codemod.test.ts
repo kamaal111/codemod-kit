@@ -1,12 +1,12 @@
+import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import fs from 'node:fs/promises';
 
 import { Lang } from '@ast-grep/napi';
 import { afterEach, beforeEach, expect, test } from 'vitest';
 
-import { runCodemod } from '../../src/codemods/utils.js';
 import type { Codemod } from '../../src/codemods/types.js';
+import { runCodemod } from '../../src/codemods/utils.js';
 
 let workingDirectory: string;
 
