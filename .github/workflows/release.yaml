@@ -22,4 +22,3 @@ jobs:
       - run: just publish
         env:
           VERSION: ${{ github.ref_name }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
