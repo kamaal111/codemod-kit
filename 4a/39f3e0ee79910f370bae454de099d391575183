@@ -1,0 +1,22 @@
+src/codemods/utils.ts
+  s_6401e77571838d::t_3f01f703f72880 191-192,200-261,278,280,282,286,291-334
+  s_6401e77571838d::t_fd80cc3020667f 335
+tests/codemods/run-codemod.test.ts
+  s_6401e77571838d::t_fe01564eadbc11 1-71
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "4a39f3e0ee79910f370bae454de099d391575183",
+  "prompts": {},
+  "sessions": {
+    "s_6401e77571838d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f020a9a7-b8e0-4357-b198-bd74b99c52f5",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "Kamaal Farah <kamaal.f1@gmail.com>"
+    }
+  }
+}
