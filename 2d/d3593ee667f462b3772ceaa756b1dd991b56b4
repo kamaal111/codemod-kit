@@ -1,0 +1,31 @@
+.github/workflows/ci.yaml
+  s_52c1a29f00217c::t_df79ece2349ce6 16,20
+  s_52c1a29f00217c::t_f4aca6cabb23e2 32,36
+.github/workflows/release.yaml
+  s_52c1a29f00217c::t_32537a37877166 17,21
+.node-version
+  s_52c1a29f00217c::t_c12db51fc36cfb 1
+package.json
+  s_52c1a29f00217c::t_561bf5e59ebec2 34-36,39,42-44,47-48,51-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "2dd3593ee667f462b3772ceaa756b1dd991b56b4",
+  "prompts": {},
+  "humans": {
+    "h_66e824d23aae73": {
+      "author": "Kamaal Farah <kamaal.f1@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_52c1a29f00217c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7de90622-84c5-4b2f-846b-b6dd8c58cee3",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "Kamaal Farah <kamaal.f1@gmail.com>"
+    }
+  }
+}
