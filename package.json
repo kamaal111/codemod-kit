@@ -31,26 +31,26 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@ast-grep/napi": "^0.40.5",
-    "@kamaalio/kamaal": "^0.8.0",
-    "execa": "^9.6.1",
+    "@ast-grep/napi": "^0.45.1",
+    "@kamaalio/kamaal": "^0.9.11",
+    "execa": "^10.0.1",
     "fast-glob": "^3.3.3",
     "neverthrow": "^8.2.0",
-    "zod": "^4.3.5"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@rslib/core": "^0.19.1",
-    "@types/node": "^25.0.6",
-    "@vitest/coverage-v8": "^4.0.16",
+    "@rslib/core": "^0.23.2",
+    "@types/node": "^26.2.0",
+    "@vitest/coverage-v8": "^4.1.10",
     "eslint-plugin-import": "^2.32.0",
     "husky": "^9.1.7",
-    "lint-staged": "^16.2.7",
-    "oxfmt": "^0.60.0",
+    "lint-staged": "^17.3.0",
+    "oxfmt": "^0.63.0",
     "oxlint": "^1.78.0",
     "oxlint-tsgolint": "^7.0.2001",
-    "tsx": "^4.21.0",
-    "typescript": "^5.9.3",
-    "vitest": "^4.0.16"
+    "tsx": "^4.23.12",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
   },
   "lint-staged": {
     "*.{js,mjs,cjs,ts}": "pnpm run lint",
