@@ -9,6 +9,7 @@ export {
   traverseUp,
   runCodemodsOnProjects,
 } from './utils.js';
+export { CodemodError, CodemodTargetNotFoundError } from './errors.js';
 export type {
   Codemod,
   Modifications,

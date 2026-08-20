@@ -8,6 +8,8 @@ export {
   findAndReplaceConfigModifications,
   traverseUp,
   runCodemodsOnProjects,
+  CodemodError,
+  CodemodTargetNotFoundError,
   type Codemod,
   type Modifications,
   type FindAndReplaceConfig,
@@ -17,3 +19,12 @@ export {
   type RepositoryToClone,
   type CodemodOptions,
 } from './codemods/index.js';
+export {
+  loadCodemodConfig,
+  CodemodConfigSchema,
+  type CodemodConfig,
+  ConfigError,
+  ConfigNotFoundError,
+  ConfigParseError,
+  ConfigValidationError,
+} from './config/index.js';

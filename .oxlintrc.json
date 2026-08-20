@@ -12,6 +12,7 @@
     "typescript/no-deprecated": "error",
     "typescript/consistent-type-imports": "error",
     "typescript/no-non-null-assertion": "error",
+    "typescript/consistent-type-assertions": ["error", { "assertionStyle": "never" }],
     "import-js/order": [
       "error",
       {

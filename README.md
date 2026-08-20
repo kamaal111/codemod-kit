@@ -22,27 +22,33 @@ const myCodemod: CodeMod = {
   },
 };
 
-runCodemods([myCodemod], './src');
+runCodemods([myCodemod], { paths: ['./src'] });
 ```
 
 ## API
 
-### `runCodemods(codemods, transformationPath, options?)`
+### `runCodemods(codemods, config, options?)`
 
-Runs a list of codemods on a given path.
+Runs a list of codemods against a `CodemodConfig` (see [Config](#config)).
 
 - `codemods`: An array of `Codemod` objects.
-- `transformationPath`: The path to the directory to transform.
-- `options`: Optional configuration for the run.
+- `config`: A `CodemodConfig` object (`{ paths, dry_run?, log? }`) describing what to transform.
+- `options`: Optional configuration for the run (`hooks`, `rootPaths` — see [Hooks](#hooks) and [Options](#options)).
 
-### `runCodemod(codemod, transformationPath, globItems, options?)`
+### `runCodemod(codemod, config, options?)`
 
-Runs a single codemod.
+Runs a single codemod against a `CodemodConfig`, transforming every path in `config.paths`.
 
 - `codemod`: A `Codemod` object.
-- `transformationPath`: The path to the directory to transform.
-- `globItems`: An array of file paths to transform.
+- `config`: A `CodemodConfig` object (`{ paths, dry_run?, log? }`) describing what to transform.
 - `options`: Optional configuration for the run.
+
+```typescript
+import { loadCodemodConfig, runCodemod } from '@kamaalio/codemod-kit';
+
+const config = await loadCodemodConfig('joi-migration-phase1.json');
+await runCodemod(myCodemod, config);
+```
 
 ### `findAndReplace(content, rule, transformer)`
 
@@ -236,6 +242,41 @@ export type Modifications = {
 - `filename`: The name of the file.
 - `history`: A history of the modifications.
 
+## Config
+
+Codemods can be driven by a JSON config file instead of hardcoding paths. `loadCodemodConfig` reads a file and returns the config, ready to pass straight into `runCodemod`/`runCodemods`:
+
+```json
+{
+  "paths": ["src/controllers"],
+  "dry_run": true,
+  "log": false
+}
+```
+
+```typescript
+import { loadCodemodConfig, runCodemod } from '@kamaalio/codemod-kit';
+
+const config = await loadCodemodConfig('joi-migration-phase1.json');
+await runCodemod(myCodemod, config);
+```
+
+A config file requires `paths` (the files/directories to transform) and may optionally set `dry_run` and `log` to control those same behaviors without touching `RunCodemodOptions`.
+
+If your codemod needs extra fields beyond that, extend `CodemodConfigSchema` (a zod schema) with `.extend()` and pass it as `loadCodemodConfig`'s second argument — it validates against and returns your extended shape:
+
+```typescript
+import { CodemodConfigSchema, loadCodemodConfig } from '@kamaalio/codemod-kit';
+import z from 'zod';
+
+const MyConfigSchema = CodemodConfigSchema.extend({ ticket_id: z.string() });
+
+const config = await loadCodemodConfig('my-codemod.json', MyConfigSchema);
+// config.paths, config.dry_run, config.ticket_id
+```
+
+`loadCodemodConfig` throws (rather than returning a value you have to check) when the file is missing, isn't valid JSON, or fails validation — the error message says exactly what's wrong.
+
 ## Hooks
 
 You can provide hooks to customize the codemod run:
@@ -259,11 +300,11 @@ You can provide options to customize the codemod run:
 ```typescript
 type RunCodemodOptions = {
   hooks?: RunCodemodHooks;
-  log?: boolean;
-  dry?: boolean;
+  rootPaths?: Array<string>;
 };
 ```
 
 - `hooks`: The hooks to use.
-- `log`: Whether to log the output.
-- `dry`: Whether to run in dry mode (no changes are written to disk).
+- `rootPaths`: Root paths used to group results for `postTransform`/hook invocation across multiple targets.
+
+`log` and `dry_run` (whether to log output, and whether to run in dry mode without writing changes) live on the `CodemodConfig` object passed to `runCodemod`/`runCodemods` — see [Config](#config).
