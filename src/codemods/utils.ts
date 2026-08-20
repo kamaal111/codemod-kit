@@ -10,6 +10,7 @@ import fg from 'fast-glob';
 import { err, ok } from 'neverthrow';
 
 import { LANG_TO_EXTENSIONS_MAPPING } from './constants.js';
+import { CodemodTargetNotFoundError } from './errors.js';
 import type {
   Codemod,
   CodemodRunnerCodemod,
@@ -19,11 +20,12 @@ import type {
   RunCodemodOkResult,
   RunCodemodResult,
 } from './types.js';
+import type { CodemodConfig } from '../config/schemas.js';
 import { cloneRepositories, type Repository } from '../git/index.js';
 import { makePullRequestsForCodemodResults } from '../github/index.js';
 import { groupBy, groupByFlat } from '../utils/arrays.js';
 import { collectionContains, collectionIsEmpty } from '../utils/collections.js';
-import { groupResults } from '../utils/results.js';
+import { groupResults, toError, tryCatchAsync } from '../utils/results.js';
 import type { ReplaceObjectProperty } from '../utils/type-utils.js';
 
 type RunCodemodHooks<C extends Codemod = Codemod> = {
@@ -34,8 +36,6 @@ type RunCodemodHooks<C extends Codemod = Codemod> = {
 
 type RunCodemodOptions<C extends Codemod = Codemod> = {
   hooks?: RunCodemodHooks<C>;
-  log?: boolean;
-  dry?: boolean;
   rootPaths?: Array<string>;
 };
 
@@ -120,22 +120,26 @@ async function runCodemodRunner<Tag = string, C extends Codemod = Codemod>(
 
         const codemodWorkingDirectory = path.resolve(workingDirectory, codemod.name.replace(/\//g, '-'));
         const failedRepositoryAddressesMappedByCodemodNames: Record<string, Set<string>> = {};
-        const result = await runCodemod(codemod, codemodWorkingDirectory, {
-          rootPaths: codemodRepositories.map(repository => repository.path),
-          hooks: {
-            preCodemodRun: async codemod => {
-              failedRepositoryAddressesMappedByCodemodNames[codemod.name] = await codemodPreCodemodRun(
-                codemodRepositories,
-                codemod,
-              );
+        const result = await runCodemod(
+          codemod,
+          { paths: [codemodWorkingDirectory] },
+          {
+            rootPaths: codemodRepositories.map(repository => repository.path),
+            hooks: {
+              preCodemodRun: async codemod => {
+                failedRepositoryAddressesMappedByCodemodNames[codemod.name] = await codemodPreCodemodRun(
+                  codemodRepositories,
+                  codemod,
+                );
+              },
+              targetFiltering: codemodTargetFiltering(
+                groupByFlat(codemodRepositories, 'name'),
+                failedRepositoryAddressesMappedByCodemodNames,
+              ),
+              postTransform: codemodPostTransform,
             },
-            targetFiltering: codemodTargetFiltering(
-              groupByFlat(codemodRepositories, 'name'),
-              failedRepositoryAddressesMappedByCodemodNames,
-            ),
-            postTransform: codemodPostTransform,
           },
-        });
+        );
         const end = performance.now();
         console.log(`✨ '${codemod.name}' codemod took ${((end - start) / 1000).toFixed(2)} seconds`);
 
@@ -177,12 +181,12 @@ async function prepareRepositoriesForCodemods<Tag, C extends Codemod>(
 
 export async function runCodemods<C extends Codemod = Codemod>(
   codemods: Array<C>,
-  transformationPath: string,
+  config: CodemodConfig,
   options?: RunCodemodOptions<C>,
 ): Promise<Record<string, Array<RunCodemodResult>>> {
   const results: Record<string, Array<RunCodemodResult>> = {};
   for (const codemod of codemods) {
-    results[codemod.name] = await runCodemod(codemod, transformationPath, options);
+    results[codemod.name] = await runCodemod(codemod, config, options);
   }
 
   return results;
@@ -228,7 +232,7 @@ async function transformFile<C extends Codemod = Codemod>(
       console.error(`❌ '${codemod.name}' failed to parse file`, filepath, error);
     }
 
-    return err(error as Error);
+    return err(toError(error));
   }
 }
 
@@ -249,14 +253,13 @@ async function runPostTransformHook<C extends Codemod = Codemod>(
   await Promise.all(rootPathsWithResults.map(r => (codemod.postTransform ?? (async () => {}))(r, codemod)));
 }
 
-async function runCodemodOnDirectory<C extends Codemod = Codemod>(
+type ResolvedTarget = { fullPath: string; filepath: string; root: string };
+
+async function resolveDirectoryTargets<C extends Codemod = Codemod>(
   codemod: C,
   transformationPath: string,
   hooks: Required<RunCodemodHooks<C>>,
-  enableLogging: boolean,
-  runInDryMode: boolean,
-  rootPaths: Array<string>,
-): Promise<Array<RunCodemodResult>> {
+): Promise<Array<ResolvedTarget>> {
   const globItems = await fg.glob(['**/*'], { cwd: transformationPath });
   const extensions = getSupportedExtensions(codemod);
   const codemodTargetFiltering = codemod.targetFiltering ?? (() => true);
@@ -266,6 +269,79 @@ async function runCodemodOnDirectory<C extends Codemod = Codemod>(
 
     return collectionIsEmpty(extensions) || extensions.has(path.extname(filepath));
   });
+
+  return targets.map(filepath => ({
+    fullPath: path.resolve(transformationPath, filepath),
+    filepath,
+    root: path.resolve(transformationPath, filepath.split('/')[0]),
+  }));
+}
+
+function resolveFileTarget<C extends Codemod = Codemod>(
+  codemod: C,
+  transformationPath: string,
+  hooks: Required<RunCodemodHooks<C>>,
+): types.Optional<ResolvedTarget> {
+  const filepath = path.basename(transformationPath);
+  const extensions = getSupportedExtensions(codemod);
+  const codemodTargetFiltering = codemod.targetFiltering ?? (() => true);
+  const isTarget =
+    hooks.targetFiltering(filepath, codemod) &&
+    codemodTargetFiltering(filepath, codemod) &&
+    (collectionIsEmpty(extensions) || extensions.has(path.extname(filepath)));
+  if (!isTarget) return null;
+
+  const fullPath = path.resolve(transformationPath);
+
+  return { fullPath, filepath, root: path.dirname(fullPath) };
+}
+
+async function resolveTargetsForPath<C extends Codemod = Codemod>(
+  codemod: C,
+  transformationPath: string,
+  hooks: Required<RunCodemodHooks<C>>,
+): Promise<Array<ResolvedTarget>> {
+  const statResult = await tryCatchAsync(() => fs.stat(transformationPath));
+  if (statResult.isErr()) {
+    throw new CodemodTargetNotFoundError(transformationPath, { cause: toError(statResult.error) });
+  }
+
+  if (statResult.value.isFile()) {
+    const target = resolveFileTarget(codemod, transformationPath, hooks);
+
+    return target == null ? [] : [target];
+  }
+
+  return resolveDirectoryTargets(codemod, transformationPath, hooks);
+}
+
+function dedupeTargetsByFullPath(targetsPerPath: Array<Array<ResolvedTarget>>): Array<ResolvedTarget> {
+  const seenFullPaths = new Set<string>();
+
+  return targetsPerPath.flat().filter(target => {
+    if (seenFullPaths.has(target.fullPath)) return false;
+
+    seenFullPaths.add(target.fullPath);
+
+    return true;
+  });
+}
+
+export async function runCodemod<C extends Codemod = Codemod>(
+  codemod: C,
+  config: CodemodConfig,
+  options?: RunCodemodOptions<C>,
+): Promise<Array<RunCodemodResult>> {
+  const { hooks, rootPaths } = defaultedOptions(options);
+  const enableLogging = config.log ?? true;
+  const runInDryMode = config.dry_run ?? false;
+
+  await hooks.preCodemodRun(codemod);
+
+  const targetsPerPath = await Promise.all(
+    config.paths.map(transformationPath => resolveTargetsForPath(codemod, transformationPath, hooks)),
+  );
+  const targets = dedupeTargetsByFullPath(targetsPerPath);
   if (targets.length === 0) return [];
 
   if (enableLogging) {
@@ -274,63 +350,15 @@ async function runCodemodOnDirectory<C extends Codemod = Codemod>(
     );
   }
 
-  const results: Array<RunCodemodResult> = await Promise.all(
-    targets.map(filepath => {
-      const fullPath = path.join(transformationPath, filepath);
-      const root = path.resolve(transformationPath, filepath.split('/')[0]);
-
-      return transformFile(codemod, fullPath, filepath, hooks, enableLogging, runInDryMode, root);
-    }),
+  const results = await Promise.all(
+    targets.map(target =>
+      transformFile(codemod, target.fullPath, target.filepath, hooks, enableLogging, runInDryMode, target.root),
+    ),
   );
 
   await runPostTransformHook(codemod, results, rootPaths);
 
   return results;
-}
-
-async function runCodemodOnFile<C extends Codemod = Codemod>(
-  codemod: C,
-  transformationPath: string,
-  hooks: Required<RunCodemodHooks<C>>,
-  enableLogging: boolean,
-  runInDryMode: boolean,
-  rootPaths: Array<string>,
-): Promise<Array<RunCodemodResult>> {
-  const filepath = path.basename(transformationPath);
-  const extensions = getSupportedExtensions(codemod);
-  const codemodTargetFiltering = codemod.targetFiltering ?? (() => true);
-  const isTarget =
-    hooks.targetFiltering(filepath, codemod) &&
-    codemodTargetFiltering(filepath, codemod) &&
-    (collectionIsEmpty(extensions) || extensions.has(path.extname(filepath)));
-  if (!isTarget) return [];
-
-  if (enableLogging) {
-    console.log(`🧉 '${codemod.name}' targeting 1 file to transform, chill and grab some maté`);
-  }
-
-  const fullPath = path.resolve(transformationPath);
-  const root = path.dirname(fullPath);
-  const results = [await transformFile(codemod, fullPath, filepath, hooks, enableLogging, runInDryMode, root)];
-
-  await runPostTransformHook(codemod, results, rootPaths);
-
-  return results;
-}
-
-export async function runCodemod<C extends Codemod = Codemod>(
-  codemod: C,
-  transformationPath: string,
-  options?: RunCodemodOptions<C>,
-): Promise<Array<RunCodemodResult>> {
-  const { hooks, log: enableLogging, dry: runInDryMode, rootPaths } = defaultedOptions(options);
-  await hooks.preCodemodRun(codemod);
-
-  const stats = await fs.stat(transformationPath);
-
-  return stats.isFile()
-    ? runCodemodOnFile(codemod, transformationPath, hooks, enableLogging, runInDryMode, rootPaths)
-    : runCodemodOnDirectory(codemod, transformationPath, hooks, enableLogging, runInDryMode, rootPaths);
 }
 
 export function traverseUp(
@@ -559,8 +587,6 @@ function defaultedOptions<C extends Codemod = Codemod>(
 ): Required<ReplaceObjectProperty<RunCodemodOptions<C>, 'hooks', Required<RunCodemodHooks<C>>>> {
   return {
     hooks: defaultedHooks<C>(options?.hooks),
-    log: options?.log ?? true,
-    dry: options?.dry ?? false,
     rootPaths: options?.rootPaths ?? [],
   };
 }

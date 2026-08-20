@@ -12,6 +12,12 @@ export function tryCatchAsync<T>(callback: () => Promise<T>): ResultAsync<T, unk
   return ResultAsync.fromPromise(callback(), e => e);
 }
 
+export function toError(value: unknown): Error {
+  if (value instanceof Error) return value;
+
+  return new Error(String(value));
+}
+
 export function groupResults<S, E>(results: Array<Result<S, E>>): { success: Array<S>; failure: Array<E> } {
   return results.reduce<{
     success: Array<S>;
