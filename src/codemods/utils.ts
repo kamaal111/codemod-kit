@@ -240,7 +240,14 @@ async function runPostTransformHook<C extends Codemod = Codemod>(
   codemod: C,
   results: Array<RunCodemodResult>,
   rootPaths: Array<string>,
+  runInDryMode: boolean,
 ): Promise<void> {
+  // `codemod.postTransform` writes directly to disk (generated config files, updated
+  // manifests, etc.), so it must be skipped in dry-run mode just like the per-file write in
+  // `transformFile` is — otherwise `dry_run: true` would still leave files behind.
+  const postTransform = codemod.postTransform;
+  if (runInDryMode || postTransform == null) return;
+
   const successes: Array<RunCodemodOkResult> = arrays.compactMap(results, result => {
     if (result.isErr()) return null;
     return result.value;
@@ -250,7 +257,7 @@ async function runPostTransformHook<C extends Codemod = Codemod>(
     root: string;
     results: Array<RunCodemodOkResult>;
   }> = rootPaths.map(root => ({ root, results: successesGroupedByRoot[root] ?? [] }));
-  await Promise.all(rootPathsWithResults.map(r => (codemod.postTransform ?? (async () => {}))(r, codemod)));
+  await Promise.all(rootPathsWithResults.map(r => postTransform(r, codemod)));
 }
 
 type ResolvedTarget = { fullPath: string; filepath: string; root: string };
@@ -356,7 +363,7 @@ export async function runCodemod<C extends Codemod = Codemod>(
     ),
   );
 
-  await runPostTransformHook(codemod, results, rootPaths);
+  await runPostTransformHook(codemod, results, rootPaths, runInDryMode);
 
   return results;
 }

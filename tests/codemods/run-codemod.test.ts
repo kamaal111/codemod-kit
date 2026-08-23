@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { Lang } from '@ast-grep/napi';
-import { afterEach, beforeEach, expect, test } from 'vitest';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
 import { CodemodTargetNotFoundError } from '../../src/codemods/errors.js';
 import type { Codemod } from '../../src/codemods/types.js';
@@ -27,6 +27,10 @@ function makeUppercaseCodemod(): Codemod {
   };
 }
 
+function makeUppercaseCodemodWithPostTransform(postTransform: Codemod['postTransform']): Codemod {
+  return { ...makeUppercaseCodemod(), postTransform };
+}
+
 test('that runCodemod transforms a single file directly', async () => {
   const filepath = path.join(workingDirectory, 'target.ts');
   await fs.writeFile(filepath, 'const value = 1;');
@@ -46,6 +50,34 @@ test('that runCodemod does not write a single file when dry_run is true', async 
 
   expect(results).toHaveLength(1);
   expect(await fs.readFile(filepath, 'utf-8')).toEqual('const value = 1;');
+});
+
+test('that runCodemod calls a codemod postTransform hook after a real run', async () => {
+  const filepath = path.join(workingDirectory, 'target.ts');
+  await fs.writeFile(filepath, 'const value = 1;');
+  const postTransform = vi.fn(async () => {});
+
+  await runCodemod(
+    makeUppercaseCodemodWithPostTransform(postTransform),
+    { paths: [filepath], log: false },
+    { rootPaths: [workingDirectory] },
+  );
+
+  expect(postTransform).toHaveBeenCalledTimes(1);
+});
+
+test('that runCodemod does not call a codemod postTransform hook when dry_run is true', async () => {
+  const filepath = path.join(workingDirectory, 'target.ts');
+  await fs.writeFile(filepath, 'const value = 1;');
+  const postTransform = vi.fn(async () => {});
+
+  await runCodemod(
+    makeUppercaseCodemodWithPostTransform(postTransform),
+    { paths: [filepath], log: false, dry_run: true },
+    { rootPaths: [workingDirectory] },
+  );
+
+  expect(postTransform).not.toHaveBeenCalled();
 });
 
 test('that runCodemod skips a single file with an unsupported extension', async () => {
